@@ -1,0 +1,42 @@
+[Unit]
+Description=NetTracer eBPF Bandwidth Monitoring Service
+Documentation=https://github.com/nettracer/nettracer
+After=network.target network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=root
+Group=root
+
+# Working directory and execution path
+WorkingDirectory=/opt/nettracer
+ExecStart=/usr/bin/python3 -m daemon.service
+
+# Auto-restart on failure
+Restart=always
+RestartSec=3s
+
+# Automatically provision runtime (/run/nettracer) and persistent (/var/lib/nettracer) directories
+RuntimeDirectory=nettracer
+RuntimeDirectoryMode=0755
+StateDirectory=nettracer
+StateDirectoryMode=0755
+
+# Environment configuration
+Environment=PYTHONUNBUFFERED=1
+
+# Linux Security & Hardening Configuration
+ProtectSystem=full
+ProtectHome=true
+NoNewPrivileges=false
+
+# eBPF Kernel Capabilities
+CapabilityBoundingSet=CAP_BPF CAP_NET_ADMIN CAP_PERFMON CAP_SYS_RESOURCE CAP_SYS_ADMIN
+AmbientCapabilities=CAP_BPF CAP_NET_ADMIN CAP_PERFMON CAP_SYS_RESOURCE CAP_SYS_ADMIN
+
+# Resource limits for eBPF JIT maps
+LimitMEMLOCK=infinity
+
+[Install]
+WantedBy=multi-user.target

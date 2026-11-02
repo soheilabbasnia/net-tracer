@@ -1,0 +1,567 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NetTracer - Bandwidth Monitor</title>
+    
+    <!-- Google Fonts: Poppins (Matches the modern, clean look of the reference) -->
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Phosphor Icons (Sleek, modern icons) -->
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Tailwind Config to match exact colors from the image -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        bgDark: '#1a1b1e',      /* Main background */
+                        cardDark: '#25262a',    /* Card background */
+                        cardDarker: '#1f2024',  /* Inner card background */
+                        accent: '#00d28a',      /* Mint green accent */
+                        textMain: '#ffffff',
+                        textMuted: '#9ca3af',
+                    },
+                    fontFamily: {
+                        sans: ['Poppins', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        /* Custom Scrollbar to match theme */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #374151;
+            border-radius: 10px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #00d28a;
+        }
+
+        /* Subtle grid background with vertical lines like the reference image */
+        .bg-grid {
+            background-image: linear-gradient(to right, rgba(255,255,255,0.03) 1px, transparent 1px);
+            background-size: 25% 100%;
+        }
+
+        /* Diamond accent points based on the image */
+        .diamond {
+            position: absolute;
+            width: 6px;
+            height: 6px;
+            background-color: #00d28a;
+            transform: rotate(45deg);
+        }
+
+        /* Circular Progress Rings logic */
+        .progress-ring {
+            background: conic-gradient(#00d28a var(--p), #374151 0);
+        }
+        
+        /* Smooth number transitions */
+        .number-transition {
+            transition: all 0.3s ease-out;
+        }
+    </style>
+</head>
+<body class="bg-bgDark text-textMain font-sans h-screen w-screen overflow-x-hidden lg:overflow-hidden flex relative selection:bg-accent selection:text-bgDark">
+
+    <!-- Background Grid & Diamonds -->
+    <div class="absolute inset-0 bg-grid pointer-events-none z-0"></div>
+    <div class="diamond top-[15%] left-[25%] opacity-70 z-0"></div>
+    <div class="diamond bottom-[15%] left-[75%] opacity-70 z-0"></div>
+    <div class="diamond top-[5%] left-[75%] opacity-30 z-0"></div>
+
+    <!-- Main Application Container -->
+    <div class="relative z-10 flex flex-col lg:flex-row w-full h-full max-w-[1600px] mx-auto p-4 md:p-6 lg:p-10 gap-6 lg:gap-8 overflow-y-auto lg:overflow-hidden pb-28 lg:pb-10">
+
+        <!-- ================= LEFT SIDEBAR (Summary/Profile Card style) ================= -->
+        <aside class="w-full lg:w-[280px] xl:w-[340px] flex-shrink-0 flex flex-col gap-6">
+            <!-- Main Stats Card -->
+            <div class="bg-cardDark rounded-[2.5rem] p-6 xl:p-8 flex flex-col h-full shadow-2xl relative overflow-hidden">
+                <!-- Decorative top left accent like a folder tab (subtle) -->
+                <div class="absolute top-0 left-0 w-24 h-1 bg-accent/50 rounded-br-full"></div>
+
+                <!-- Header / Avatar Area -->
+                <div class="flex flex-col items-center mt-4 mb-8">
+                    <div class="w-24 h-24 rounded-full border border-[#374151] p-1 flex items-center justify-center mb-4 bg-cardDarker shadow-inner">
+                        <i class="ph ph-activity text-5xl text-accent"></i>
+                    </div>
+                    <h2 class="text-2xl font-bold tracking-wide">Net<span class="text-accent">Tracer</span></h2>
+                    <p class="text-xs text-accent mt-1 tracking-widest uppercase">Live Daemon Active | Root</p>
+                </div>
+
+                <!-- Interface Details -->
+                <div class="flex flex-col gap-3 text-sm mb-10 w-full">
+                    <div class="flex justify-between items-center border-b border-white/5 pb-2">
+                        <span class="text-textMuted">Interface:</span>
+                        <span class="font-medium text-right">wlan0</span>
+                    </div>
+                    <div class="flex justify-between items-center border-b border-white/5 pb-2">
+                        <span class="text-textMuted">Local IP:</span>
+                        <span class="font-medium text-right">192.168.1.104</span>
+                    </div>
+                    <div class="flex justify-between items-center border-b border-white/5 pb-2">
+                        <span class="text-textMuted">Total Data Today:</span>
+                        <span class="font-medium text-right">4.2 GB</span>
+                    </div>
+                </div>
+
+                <!-- App Share Rings (Matching the "Skills" from the image) -->
+                <div class="mb-auto">
+                    <h3 class="text-sm font-semibold mb-6 text-textMain">Top Consumers</h3>
+                    <div class="flex justify-between px-2">
+                        <!-- Ring 1 -->
+                        <div class="flex flex-col items-center gap-2">
+                            <div class="progress-ring w-12 h-12 rounded-full flex items-center justify-center relative" style="--p: 68%;">
+                                <div class="w-10 h-10 bg-cardDark rounded-full flex items-center justify-center text-xs font-semibold">68%</div>
+                            </div>
+                            <span class="text-[10px] text-textMuted">Chrome</span>
+                        </div>
+                        <!-- Ring 2 -->
+                        <div class="flex flex-col items-center gap-2">
+                            <div class="progress-ring w-12 h-12 rounded-full flex items-center justify-center relative" style="--p: 22%;">
+                                <div class="w-10 h-10 bg-cardDark rounded-full flex items-center justify-center text-xs font-semibold">22%</div>
+                            </div>
+                            <span class="text-[10px] text-textMuted">Telegram</span>
+                        </div>
+                        <!-- Ring 3 -->
+                        <div class="flex flex-col items-center gap-2">
+                            <div class="progress-ring w-12 h-12 rounded-full flex items-center justify-center relative" style="--p: 8%;">
+                                <div class="w-10 h-10 bg-cardDark rounded-full flex items-center justify-center text-xs font-semibold">8%</div>
+                            </div>
+                            <span class="text-[10px] text-textMuted">Spotify</span>
+                        </div>
+                        <!-- Ring 4 -->
+                        <div class="flex flex-col items-center gap-2">
+                            <div class="progress-ring w-12 h-12 rounded-full flex items-center justify-center relative" style="--p: 2%;">
+                                <div class="w-10 h-10 bg-cardDark rounded-full flex items-center justify-center text-xs font-semibold">2%</div>
+                            </div>
+                            <span class="text-[10px] text-textMuted">Pacman</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Action Buttons (Pill shaped like the CV buttons) -->
+                <div class="flex gap-3 mt-8">
+                    <button class="flex-1 bg-accent text-bgDark font-semibold py-3 px-2 xl:px-4 rounded-full text-sm hover:bg-[#0add9d] transition-colors flex justify-center items-center gap-2">
+                        <i class="ph ph-pause-circle text-lg"></i> Suspend
+                    </button>
+                    <button class="flex-1 bg-accent text-bgDark font-semibold py-3 px-2 xl:px-4 rounded-full text-sm hover:bg-[#0add9d] transition-colors flex justify-center items-center gap-2">
+                        <i class="ph ph-export text-lg"></i> Export
+                    </button>
+                </div>
+            </div>
+        </aside>
+
+        <!-- ================= MAIN CONTENT AREA ================= -->
+        <main class="flex-1 overflow-hidden min-h-[500px] relative">
+            
+            <!-- VIEW: DASHBOARD (Active by default) -->
+            <div id="view-dashboard" class="view-section flex flex-col xl:flex-row gap-6 h-full animate-[fadeIn_0.3s_ease-out]">
+                
+                <!-- Left column of Dashboard: Floating Welcome & Speeds -->
+                <div class="flex-1 flex flex-col justify-center px-4 lg:px-8 py-10 z-10">
+                    <div class="inline-flex items-center gap-2 text-textMuted text-sm font-medium tracking-wider mb-4 bg-white/5 w-fit px-4 py-2 rounded-full border border-white/5">
+                        <i class="ph ph-broadcast text-accent"></i> Live Traffic
+                    </div>
+                    <h1 class="text-5xl lg:text-6xl font-bold mb-6 leading-[1.1]">
+                        Monitor your <br>
+                        <span class="text-accent">Network Activity</span>
+                    </h1>
+                    <p class="text-sm text-textMuted leading-relaxed max-w-md mb-8">
+                        eBPF socket monitoring is active. Currently tracking 42 processes in real-time. Unrecognized UDP packets are dropped from stats.
+                    </p>
+                    <div class="flex gap-6 text-sm text-textMuted mb-12">
+                        <span class="flex items-center gap-2"><i class="ph ph-check text-accent"></i> Real-time</span>
+                        <span class="flex items-center gap-2"><i class="ph ph-check text-accent"></i> Zero-overhead</span>
+                    </div>
+
+                    <!-- Big Speed Indicators -->
+                    <div class="flex gap-10 bg-cardDark/40 backdrop-blur-md border border-white/5 p-6 rounded-[2rem] w-fit">
+                        <div>
+                            <div class="text-xs text-textMuted mb-2 flex items-center gap-1 uppercase tracking-widest"><i class="ph ph-arrow-down-left text-accent"></i> Download</div>
+                            <div class="text-3xl font-bold flex items-baseline gap-1">
+                                <span id="live-dl" class="number-transition">2.4</span> <span class="text-sm text-textMuted font-normal">MB/s</span>
+                            </div>
+                        </div>
+                        <div class="w-[1px] bg-white/10"></div>
+                        <div>
+                            <div class="text-xs text-textMuted mb-2 flex items-center gap-1 uppercase tracking-widest"><i class="ph ph-arrow-up-right text-accent"></i> Upload</div>
+                            <div class="text-3xl font-bold flex items-baseline gap-1">
+                                <span id="live-ul" class="number-transition">0.8</span> <span class="text-sm text-textMuted font-normal">MB/s</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right column of Dashboard: App List (Scrollable) -->
+                <div class="w-full xl:w-[380px] bg-cardDark/80 backdrop-blur-xl rounded-[2.5rem] p-6 lg:p-8 flex flex-col shadow-2xl border border-white/5 shrink-0 h-full z-10">
+                    <div class="flex items-center justify-between mb-8 shrink-0">
+                        <div class="flex items-center gap-2 text-textMuted text-xs font-medium uppercase tracking-wider">
+                            <i class="ph ph-cpu text-accent text-lg"></i> Process List
+                        </div>
+                        <div class="text-[10px] bg-cardDarker px-3 py-1.5 rounded-full text-textMuted cursor-pointer hover:text-accent border border-white/5 transition-colors flex items-center gap-1">
+                            Sort by Usage <i class="ph ph-caret-down"></i>
+                        </div>
+                    </div>
+
+                    <!-- Process Items Container -->
+                    <div class="flex-1 overflow-y-auto pr-2 flex flex-col gap-4">
+                        
+                        <!-- Item 1 -->
+                        <div class="bg-cardDarker rounded-3xl p-5 flex flex-col gap-4 border border-white/5 hover:border-white/10 transition-colors group">
+                            <div class="flex justify-between items-center">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-10 h-10 bg-white/5 rounded-2xl flex items-center justify-center shrink-0 text-xl group-hover:text-accent transition-colors">
+                                        <i class="ph ph-google-chrome-logo"></i>
+                                    </div>
+                                    <div>
+                                        <h3 class="font-semibold text-sm">Google Chrome</h3>
+                                        <span class="text-[10px] text-textMuted">PID: 8432</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="flex gap-2">
+                                <div class="flex-1 bg-bgDark rounded-xl p-2 text-center border border-white/5">
+                                    <div class="text-[10px] text-textMuted mb-0.5">RX</div>
+                                    <div class="text-xs font-semibold text-accent">2.1 GB</div>
+                                </div>
+                                <div class="flex-1 bg-bgDark rounded-xl p-2 text-center border border-white/5">
+                                    <div class="text-[10px] text-textMuted mb-0.5">TX</div>
+                                    <div class="text-xs font-semibold text-white">340 MB</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Item 2 -->
+                        <div class="bg-cardDarker rounded-3xl p-5 flex flex-col gap-4 border border-white/5 hover:border-white/10 transition-colors group">
+                            <div class="flex justify-between items-center">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-10 h-10 bg-white/5 rounded-2xl flex items-center justify-center shrink-0 text-xl group-hover:text-accent transition-colors">
+                                        <i class="ph ph-paper-plane-tilt"></i>
+                                    </div>
+                                    <div>
+                                        <h3 class="font-semibold text-sm">Telegram Desktop</h3>
+                                        <span class="text-[10px] text-textMuted">PID: 1205</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="flex gap-2">
+                                <div class="flex-1 bg-bgDark rounded-xl p-2 text-center border border-white/5">
+                                    <div class="text-[10px] text-textMuted mb-0.5">RX</div>
+                                    <div class="text-xs font-semibold text-accent">450 MB</div>
+                                </div>
+                                <div class="flex-1 bg-bgDark rounded-xl p-2 text-center border border-white/5">
+                                    <div class="text-[10px] text-textMuted mb-0.5">TX</div>
+                                    <div class="text-xs font-semibold text-white">80 MB</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Item 3 -->
+                        <div class="bg-cardDarker rounded-3xl p-5 flex flex-col gap-4 border border-white/5 hover:border-white/10 transition-colors group">
+                            <div class="flex justify-between items-center">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-10 h-10 bg-white/5 rounded-2xl flex items-center justify-center shrink-0 text-xl group-hover:text-accent transition-colors">
+                                        <i class="ph ph-spotify-logo"></i>
+                                    </div>
+                                    <div>
+                                        <h3 class="font-semibold text-sm">Spotify</h3>
+                                        <span class="text-[10px] text-textMuted">PID: 3491</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="flex gap-2">
+                                <div class="flex-1 bg-bgDark rounded-xl p-2 text-center border border-white/5">
+                                    <div class="text-[10px] text-textMuted mb-0.5">RX</div>
+                                    <div class="text-xs font-semibold text-accent">120 MB</div>
+                                </div>
+                                <div class="flex-1 bg-bgDark rounded-xl p-2 text-center border border-white/5">
+                                    <div class="text-[10px] text-textMuted mb-0.5">TX</div>
+                                    <div class="text-xs font-semibold text-white">5 MB</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Item 4 -->
+                        <div class="bg-cardDarker rounded-3xl p-5 flex flex-col gap-4 border border-white/5 hover:border-white/10 transition-colors group">
+                            <div class="flex justify-between items-center">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-10 h-10 bg-white/5 rounded-2xl flex items-center justify-center shrink-0 text-xl group-hover:text-accent transition-colors">
+                                        <i class="ph ph-terminal-window"></i>
+                                    </div>
+                                    <div>
+                                        <h3 class="font-semibold text-sm">Pacman</h3>
+                                        <span class="text-[10px] text-textMuted">PID: 9912</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="flex gap-2">
+                                <div class="flex-1 bg-bgDark rounded-xl p-2 text-center border border-white/5">
+                                    <div class="text-[10px] text-textMuted mb-0.5">RX</div>
+                                    <div class="text-xs font-semibold text-accent">45 MB</div>
+                                </div>
+                                <div class="flex-1 bg-bgDark rounded-xl p-2 text-center border border-white/5">
+                                    <div class="text-[10px] text-textMuted mb-0.5">TX</div>
+                                    <div class="text-xs font-semibold text-white">1.2 MB</div>
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+            </div>
+
+            <!-- VIEW: CHARTS -->
+            <div id="view-charts" class="view-section hidden flex-col gap-6 h-full animate-[fadeIn_0.3s_ease-out]">
+                <div class="bg-cardDark rounded-[2.5rem] p-6 lg:p-10 flex flex-col shadow-lg h-full border border-white/5 relative overflow-hidden">
+                    <div class="flex items-center gap-2 text-textMuted text-xs font-medium uppercase tracking-wider mb-6">
+                        <i class="ph ph-chart-line-up text-accent text-lg"></i> Traffic Analytics
+                    </div>
+                    <div class="flex-1 flex flex-col items-center justify-center border-2 border-dashed border-white/10 rounded-3xl bg-cardDarker/30 text-center p-8 z-10">
+                        <i class="ph ph-presentation-chart text-6xl text-textMuted mb-4 opacity-50"></i>
+                        <h3 class="text-2xl font-bold mb-2 text-white">Bandwidth Visualization</h3>
+                        <p class="text-sm text-textMuted max-w-md">
+                            Interactive charts will be rendered here. Shows daily and weekly bandwidth trends across all monitored processes.
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- VIEW: HISTORY -->
+            <div id="view-history" class="view-section hidden flex-col gap-6 h-full animate-[fadeIn_0.3s_ease-out]">
+                <div class="bg-cardDark rounded-[2.5rem] p-6 lg:p-10 flex flex-col shadow-lg h-full border border-white/5 relative overflow-hidden">
+                    <div class="flex items-center justify-between mb-8 z-10">
+                        <div class="flex items-center gap-2 text-textMuted text-xs font-medium uppercase tracking-wider">
+                            <i class="ph ph-clock-counter-clockwise text-accent text-lg"></i> App Data Log
+                        </div>
+                        <button class="text-xs bg-white/5 hover:bg-white/10 px-4 py-2 rounded-full transition-colors border border-white/5">Clear History</button>
+                    </div>
+                    <div class="flex-1 overflow-y-auto pr-2 flex flex-col gap-3 z-10">
+                        <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center p-5 bg-cardDarker rounded-2xl text-sm border border-transparent hover:border-white/10 transition-colors gap-4 sm:gap-0">
+                            <span class="w-full sm:w-1/4 text-textMuted text-xs">Today, 10:30 AM</span>
+                            <span class="w-full sm:w-1/4 font-semibold text-white flex items-center gap-2"><i class="ph ph-firefox-logo text-lg"></i> Firefox</span>
+                            <span class="w-full sm:w-1/4 text-accent text-left sm:text-right font-medium">+450 MB (DL)</span>
+                            <span class="w-full sm:w-1/4 text-textMuted text-left sm:text-right">12 MB (UL)</span>
+                        </div>
+                        <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center p-5 bg-cardDarker rounded-2xl text-sm border border-transparent hover:border-white/10 transition-colors gap-4 sm:gap-0">
+                            <span class="w-full sm:w-1/4 text-textMuted text-xs">Today, 09:15 AM</span>
+                            <span class="w-full sm:w-1/4 font-semibold text-white flex items-center gap-2"><i class="ph ph-docker-logo text-lg"></i> Docker Daemon</span>
+                            <span class="w-full sm:w-1/4 text-accent text-left sm:text-right font-medium">+1.2 GB (DL)</span>
+                            <span class="w-full sm:w-1/4 text-textMuted text-left sm:text-right">300 MB (UL)</span>
+                        </div>
+                        <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center p-5 bg-cardDarker rounded-2xl text-sm border border-transparent hover:border-white/10 transition-colors gap-4 sm:gap-0">
+                            <span class="w-full sm:w-1/4 text-textMuted text-xs">Yesterday</span>
+                            <span class="w-full sm:w-1/4 font-semibold text-white flex items-center gap-2"><i class="ph ph-linux-logo text-lg"></i> System Updates</span>
+                            <span class="w-full sm:w-1/4 text-accent text-left sm:text-right font-medium">+800 MB (DL)</span>
+                            <span class="w-full sm:w-1/4 text-textMuted text-left sm:text-right">2 MB (UL)</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- VIEW: SECURITY/RULES -->
+            <div id="view-security" class="view-section hidden flex-col gap-6 h-full animate-[fadeIn_0.3s_ease-out]">
+                <div class="bg-cardDark rounded-[2.5rem] p-6 lg:p-10 flex flex-col shadow-lg h-full border border-white/5 relative overflow-hidden">
+                    <div class="flex items-center gap-2 text-textMuted text-xs font-medium uppercase tracking-wider mb-8 z-10">
+                        <i class="ph ph-shield-check text-accent text-lg"></i> Network Rules & Limits
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 z-10">
+                        <div class="p-6 bg-cardDarker rounded-3xl border border-white/5 hover:border-white/10 transition-colors">
+                            <div class="flex justify-between items-start mb-4">
+                                <div>
+                                    <h3 class="font-semibold text-white text-lg">Block Background Data</h3>
+                                    <p class="text-sm text-textMuted mt-1">Prevent apps from using data when minimized</p>
+                                </div>
+                                <div class="w-12 h-6 bg-bgDark rounded-full relative cursor-pointer border border-white/10">
+                                    <div class="w-4 h-4 bg-textMuted rounded-full absolute left-1 top-[3px]"></div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="p-6 bg-cardDarker rounded-3xl border border-accent/30 bg-accent/5">
+                            <div class="flex justify-between items-start mb-4">
+                                <div>
+                                    <h3 class="font-semibold text-white text-lg">Daily Quota Warning</h3>
+                                    <p class="text-sm text-textMuted mt-2 flex items-center gap-2">
+                                        Alert when usage exceeds 
+                                        <input type="number" value="5" min="1" max="999" class="w-14 bg-bgDark border border-white/20 rounded-lg px-2 py-0.5 text-center text-white focus:border-accent outline-none transition-colors" style="-moz-appearance: textfield;">
+                                        GB/day
+                                    </p>
+                                </div>
+                                <div class="w-12 h-6 bg-accent rounded-full relative cursor-pointer shadow-[0_0_15px_rgba(0,210,138,0.3)]">
+                                    <div class="w-4 h-4 bg-bgDark rounded-full absolute right-1 top-[3px]"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- VIEW: SETTINGS -->
+            <div id="view-settings" class="view-section hidden flex-col gap-6 h-full animate-[fadeIn_0.3s_ease-out]">
+                <div class="bg-cardDark rounded-[2.5rem] p-6 lg:p-10 flex flex-col shadow-lg h-full overflow-y-auto border border-white/5 relative">
+                    <div class="flex items-center gap-2 text-textMuted text-xs font-medium uppercase tracking-wider mb-8 z-10">
+                        <i class="ph ph-gear text-accent text-lg"></i> Preferences
+                    </div>
+                    
+                    <div class="space-y-4 z-10 max-w-3xl">
+                        <!-- Setting Item -->
+                        <div class="flex items-center justify-between p-5 bg-cardDarker rounded-3xl border border-white/5">
+                            <div>
+                                <h3 class="text-white font-semibold text-base">Launch at Startup</h3>
+                                <p class="text-sm text-textMuted mt-1">Start NetTracer daemon automatically on boot</p>
+                            </div>
+                            <div class="w-12 h-6 bg-accent rounded-full relative cursor-pointer">
+                                <div class="w-4 h-4 bg-bgDark rounded-full absolute right-1 top-[3px]"></div>
+                            </div>
+                        </div>
+                        <!-- Setting Item -->
+                        <div class="flex items-center justify-between p-5 bg-cardDarker rounded-3xl border border-white/5">
+                            <div>
+                                <h3 class="text-white font-semibold text-base">eBPF Strict Mode</h3>
+                                <p class="text-sm text-textMuted mt-1">Drop packets without matching PID (Requires Root)</p>
+                            </div>
+                            <div class="w-12 h-6 bg-bgDark rounded-full relative cursor-pointer border border-white/10">
+                                <div class="w-4 h-4 bg-textMuted rounded-full absolute left-1 top-[3px]"></div>
+                            </div>
+                        </div>
+                        <!-- Setting Item -->
+                        <div class="flex items-center justify-between p-5 bg-cardDarker rounded-3xl border border-white/5">
+                            <div>
+                                <h3 class="text-white font-semibold text-base">Data Retention</h3>
+                                <p class="text-sm text-textMuted mt-1">Keep application usage history for</p>
+                            </div>
+                            <select class="bg-bgDark border border-white/10 text-white text-sm rounded-xl px-4 py-2 outline-none focus:border-accent">
+                                <option>7 Days</option>
+                                <option>30 Days</option>
+                                <option>Forever</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </main>
+
+        <!-- ================= RIGHT SIDEBAR (Floating Navigation) ================= -->
+        <nav class="fixed bottom-6 left-1/2 -translate-x-1/2 lg:static lg:translate-x-0 w-fit lg:w-[70px] shrink-0 h-fit bg-cardDark/90 backdrop-blur-xl rounded-full py-4 lg:py-8 px-6 lg:px-2 flex flex-row lg:flex-col items-center gap-6 lg:gap-8 my-auto shadow-2xl border border-white/10 z-50">
+            <!-- Navigation Buttons -->
+            <button data-target="view-dashboard" class="nav-btn w-10 h-10 rounded-full bg-accent/10 flex items-center justify-center text-accent transition-all hover:scale-110 active-btn">
+                <i class="ph-fill ph-squares-four text-2xl nav-icon"></i>
+            </button>
+            <button data-target="view-charts" class="nav-btn w-10 h-10 rounded-full text-textMuted flex items-center justify-center hover:text-white transition-all hover:scale-110 hover:bg-white/5">
+                <i class="ph ph-chart-line-up text-xl nav-icon"></i>
+            </button>
+            <button data-target="view-history" class="nav-btn w-10 h-10 rounded-full text-textMuted flex items-center justify-center hover:text-white transition-all hover:scale-110 hover:bg-white/5">
+                <i class="ph ph-clock-counter-clockwise text-xl nav-icon"></i>
+            </button>
+            <button data-target="view-security" class="nav-btn w-10 h-10 rounded-full text-textMuted flex items-center justify-center hover:text-white transition-all hover:scale-110 hover:bg-white/5">
+                <i class="ph ph-shield-check text-xl nav-icon"></i>
+            </button>
+            
+            <div class="w-[1px] h-6 lg:w-6 lg:h-[1px] bg-white/10 mx-2 lg:my-2 lg:mx-0"></div> <!-- Divider -->
+            
+            <button data-target="view-settings" class="nav-btn w-10 h-10 rounded-full text-textMuted flex items-center justify-center hover:text-white transition-all hover:scale-110 hover:bg-white/5">
+                <i class="ph ph-gear text-xl nav-icon"></i>
+            </button>
+        </nav>
+
+    </div>
+
+    <!-- Script to simulate live data changes and Navigation Interactions -->
+    <script>
+        // Adding tailwind custom animation dynamically for smooth tab switching
+        tailwind.config.theme.extend.keyframes = {
+            fadeIn: {
+                '0%': { opacity: '0', transform: 'translateY(10px)' },
+                '100%': { opacity: '1', transform: 'translateY(0)' },
+            }
+        };
+
+        document.addEventListener('DOMContentLoaded', () => {
+            // --- Navigation Dock & Tab Switching Logic ---
+            const navButtons = document.querySelectorAll('.nav-btn');
+            const viewSections = document.querySelectorAll('.view-section');
+            
+            navButtons.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const targetId = btn.getAttribute('data-target');
+
+                    // 1. Reset all buttons
+                    navButtons.forEach(b => {
+                        b.classList.remove('bg-accent/10', 'text-accent', 'active-btn');
+                        b.classList.add('text-textMuted');
+                        
+                        const icon = b.querySelector('.nav-icon');
+                        if (icon) {
+                            icon.classList.remove('ph-fill');
+                            icon.classList.add('ph');
+                            icon.classList.remove('text-2xl');
+                            icon.classList.add('text-xl');
+                        }
+                    });
+
+                    // 2. Set active state to clicked button
+                    btn.classList.add('bg-accent/10', 'text-accent', 'active-btn');
+                    btn.classList.remove('text-textMuted');
+                    
+                    const activeIcon = btn.querySelector('.nav-icon');
+                    if (activeIcon) {
+                        activeIcon.classList.remove('ph');
+                        activeIcon.classList.add('ph-fill');
+                        activeIcon.classList.remove('text-xl');
+                        activeIcon.classList.add('text-2xl');
+                    }
+
+                    // 3. Switch Views
+                    viewSections.forEach(section => {
+                        if(section.id === targetId) {
+                            section.classList.remove('hidden');
+                            section.classList.add('flex');
+                        } else {
+                            section.classList.add('hidden');
+                            section.classList.remove('flex');
+                        }
+                    });
+                });
+            });
+
+            // --- Live Data Simulation ---
+            const liveDl = document.getElementById('live-dl');
+            const liveUl = document.getElementById('live-ul');
+
+            // Simulate slight fluctuations in bandwidth to make the prototype feel "alive"
+            setInterval(() => {
+                const baseDl = 2.4;
+                const baseUl = 0.8;
+                
+                const flucDl = (Math.random() * 0.8 - 0.4).toFixed(1);
+                const flucUl = (Math.random() * 0.2 - 0.1).toFixed(1);
+                
+                let newDl = (baseDl + parseFloat(flucDl)).toFixed(1);
+                let newUl = (baseUl + parseFloat(flucUl)).toFixed(1);
+                
+                if (newDl < 0) newDl = 0.0;
+                if (newUl < 0) newUl = 0.0;
+
+                liveDl.innerText = newDl;
+                liveUl.innerText = newUl;
+            }, 2000);
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,212 @@
+"""
+NetTracer - Left Sidebar Widget
+Renders profile card, interface metrics, circular progress consumers, and action buttons.
+"""
+
+from PyQt6.QtWidgets import (
+    QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QFrame
+)
+from PyQt6.QtCore import Qt, pyqtSignal, QRectF
+from PyQt6.QtGui import QPainter, QColor, QPen, QFont, QPainterPath
+
+from gui.styles import (
+    COLOR_CARD_DARK, COLOR_CARD_DARKER, COLOR_ACCENT,
+    COLOR_TEXT_MAIN, COLOR_TEXT_MUTED, COLOR_PROGRESS_BG
+)
+from gui.widgets.circular_progress import CircularProgressRing
+
+
+class ActivityAvatar(QWidget):
+    """Circular ECG pulse icon matching the HTML activity avatar."""
+
+    def __init__(self, size: int = 86, parent=None):
+        super().__init__(parent)
+        self.setFixedSize(size, size)
+
+    def paintEvent(self, event):
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+
+        rect = QRectF(2, 2, self.width() - 4, self.height() - 4)
+
+        # Background circle
+        painter.setBrush(QColor(COLOR_CARD_DARKER))
+        painter.setPen(QPen(QColor(COLOR_PROGRESS_BG), 1.5))
+        painter.drawEllipse(rect)
+
+        # Draw ECG / Activity pulse path in accent green
+        painter.setPen(QPen(QColor(COLOR_ACCENT), 2.5, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap, Qt.PenJoinStyle.RoundJoin))
+        painter.setBrush(Qt.BrushStyle.NoBrush)
+
+        cx = self.width() / 2.0
+        cy = self.height() / 2.0
+
+        path = QPainterPath()
+        path.moveTo(cx - 24, cy)
+        path.lineTo(cx - 14, cy)
+        path.lineTo(cx - 8, cy - 14)
+        path.lineTo(cx + 2, cy + 16)
+        path.lineTo(cx + 10, cy - 8)
+        path.lineTo(cx + 16, cy)
+        path.lineTo(cx + 24, cy)
+
+        painter.drawPath(path)
+
+
+class SidebarWidget(QFrame):
+    """Left sidebar widget of NetTracer."""
+
+    suspend_clicked = pyqtSignal(bool)
+    export_clicked = pyqtSignal()
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setFixedWidth(300)
+        self._is_suspended = False
+
+        self._setup_ui()
+
+    def _setup_ui(self):
+        self.setStyleSheet(f"""
+            QFrame#SidebarFrame {{
+                background-color: {COLOR_CARD_DARK};
+                border-radius: 36px;
+                border: 1px solid rgba(255, 255, 255, 0.04);
+            }}
+        """)
+        self.setObjectName("SidebarFrame")
+
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(22, 26, 22, 24)
+        layout.setSpacing(0)
+
+        # Header / Avatar Area
+        header_layout = QVBoxLayout()
+        header_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
+
+        self.avatar = ActivityAvatar(84)
+        header_layout.addWidget(self.avatar, alignment=Qt.AlignmentFlag.AlignCenter)
+        header_layout.addSpacing(14)
+
+        # Title: NetTracer
+        title_lbl = QLabel()
+        title_lbl.setTextFormat(Qt.TextFormat.RichText)
+        title_lbl.setText(f'<span style="color:{COLOR_TEXT_MAIN}; font-size:24px; font-weight:700;">Net</span><span style="color:{COLOR_ACCENT}; font-size:24px; font-weight:700;">Tracer</span>')
+        title_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        header_layout.addWidget(title_lbl)
+
+        # Subtitle: Status badge
+        self.status_lbl = QLabel("LIVE DAEMON ACTIVE | ROOT")
+        self.status_lbl.setStyleSheet(f"color: {COLOR_ACCENT}; font-size: 10px; font-weight: 700; letter-spacing: 1.5px;")
+        self.status_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        header_layout.addWidget(self.status_lbl)
+
+        layout.addLayout(header_layout)
+        layout.addSpacing(26)
+
+        # Interface Metrics Table
+        metrics_box = QVBoxLayout()
+        metrics_box.setSpacing(10)
+
+        self.lbl_iface_val = QLabel("wlan0")
+        metrics_box.addWidget(self._create_metric_row("Interface:", self.lbl_iface_val))
+
+        self.lbl_ip_val = QLabel("192.168.1.104")
+        metrics_box.addWidget(self._create_metric_row("Local IP:", self.lbl_ip_val))
+
+        self.lbl_total_val = QLabel("4.2 GB")
+        metrics_box.addWidget(self._create_metric_row("Total Data Today:", self.lbl_total_val))
+
+        layout.addLayout(metrics_box)
+        layout.addSpacing(28)
+
+        # Top Consumers Section
+        consumers_title = QLabel("Top Consumers")
+        consumers_title.setStyleSheet(f"color: {COLOR_TEXT_MAIN}; font-size: 13px; font-weight: 600;")
+        layout.addWidget(consumers_title)
+        layout.addSpacing(14)
+
+        # 4 Circular Progress Rings
+        self.rings_layout = QHBoxLayout()
+        self.rings_layout.setSpacing(2)
+        self.rings_layout.setContentsMargins(0, 0, 0, 0)
+
+        self.ring1 = CircularProgressRing("Chrome", 68)
+        self.ring2 = CircularProgressRing("Telegram", 22)
+        self.ring3 = CircularProgressRing("Spotify", 8)
+        self.ring4 = CircularProgressRing("Pacman", 2)
+
+        self.rings = [self.ring1, self.ring2, self.ring3, self.ring4]
+        for ring in self.rings:
+            self.rings_layout.addWidget(ring)
+
+        layout.addLayout(self.rings_layout)
+
+        layout.addStretch()
+
+        # Bottom Action Buttons
+        btn_layout = QHBoxLayout()
+        btn_layout.setSpacing(12)
+
+        self.btn_suspend = QPushButton("⏸ Suspend")
+        self.btn_suspend.setProperty("class", "pill-btn")
+        self.btn_suspend.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.btn_suspend.clicked.connect(self._toggle_suspend)
+
+        self.btn_export = QPushButton("⇪ Export")
+        self.btn_export.setProperty("class", "pill-btn")
+        self.btn_export.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.btn_export.clicked.connect(self.export_clicked.emit)
+
+        btn_layout.addWidget(self.btn_suspend)
+        btn_layout.addWidget(self.btn_export)
+
+        layout.addLayout(btn_layout)
+
+    def _create_metric_row(self, label_text: str, val_widget: QLabel) -> QWidget:
+        row = QWidget()
+        row.setStyleSheet("border-bottom: 1px solid rgba(255, 255, 255, 0.05); padding-bottom: 4px;")
+        h = QHBoxLayout(row)
+        h.setContentsMargins(0, 0, 0, 4)
+
+        lbl = QLabel(label_text)
+        lbl.setStyleSheet(f"color: {COLOR_TEXT_MUTED}; font-size: 13px; border: none;")
+
+        val_widget.setStyleSheet(f"color: {COLOR_TEXT_MAIN}; font-size: 13px; font-weight: 500; border: none;")
+        val_widget.setAlignment(Qt.AlignmentFlag.AlignRight)
+
+        h.addWidget(lbl)
+        h.addWidget(val_widget)
+        return row
+
+    def _toggle_suspend(self):
+        self._is_suspended = not self._is_suspended
+        if self._is_suspended:
+            self.btn_suspend.setText("▶ Resume")
+            self.status_lbl.setText("DAEMON SUSPENDED")
+            self.status_lbl.setStyleSheet("color: #f59e0b; font-size: 10px; font-weight: 700; letter-spacing: 1.5px;")
+        else:
+            self.btn_suspend.setText("⏸ Suspend")
+            self.status_lbl.setText("LIVE DAEMON ACTIVE | ROOT")
+            self.status_lbl.setStyleSheet(f"color: {COLOR_ACCENT}; font-size: 10px; font-weight: 700; letter-spacing: 1.5px;")
+        self.suspend_clicked.emit(self._is_suspended)
+
+    def update_metrics(self, iface: str, ip: str, total_today_formatted: str, top_consumers: list, is_live: bool):
+        self.lbl_iface_val.setText(iface)
+        self.lbl_ip_val.setText(ip)
+        self.lbl_total_val.setText(total_today_formatted)
+
+        if not self._is_suspended:
+            if is_live:
+                self.status_lbl.setText("LIVE DAEMON ACTIVE | ROOT")
+                self.status_lbl.setStyleSheet(f"color: {COLOR_ACCENT}; font-size: 10px; font-weight: 700; letter-spacing: 1.5px;")
+            else:
+                self.status_lbl.setText("SIMULATION MODE | DEV")
+                self.status_lbl.setStyleSheet("color: #60a5fa; font-size: 10px; font-weight: 700; letter-spacing: 1.5px;")
+
+        for i, ring in enumerate(self.rings):
+            if i < len(top_consumers):
+                c = top_consumers[i]
+                # Shorten name if needed
+                short_name = c.get("name", "").split()[0]
+                ring.set_data(short_name, c.get("percentage", 0))

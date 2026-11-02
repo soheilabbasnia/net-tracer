@@ -1,0 +1,6 @@
+# NetTracer Dependencies
+# For Arch Linux, native pacman packages are recommended:
+#   pacman -S python-pyqt6 bcc python-bcc linux-headers python-psutil
+
+PyQt6>=6.6.0
+psutil>=5.9.0
