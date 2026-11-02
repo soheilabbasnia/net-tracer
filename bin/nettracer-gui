@@ -8,6 +8,19 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if BASE_DIR not in sys.path:
     sys.path.insert(0, BASE_DIR)
 
+# If current python lacks PyQt6, re-exec with user environment python if available
+try:
+    import PyQt6
+except ImportError:
+    candidate_pythons = [
+        os.path.expanduser("~/Programs/miniconda3/bin/python"),
+        "/usr/bin/python3"
+    ]
+    for py in candidate_pythons:
+        if os.path.exists(py) and sys.executable != py:
+            os.execv(py, [py] + sys.argv)
+    raise
+
 from gui.app import main
 
 if __name__ == "__main__":

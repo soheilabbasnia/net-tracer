@@ -1,0 +1,11 @@
+[Desktop Entry]
+Name=NetTracer
+GenericName=Bandwidth Monitor
+Comment=Per-Process Bandwidth Monitoring Suite
+Exec=nettracer
+Icon=utilities-system-monitor
+Terminal=false
+Type=Application
+Categories=System;Monitor;Network;
+Keywords=network;bandwidth;ebpf;traffic;tracer;monitor;
+StartupNotify=true

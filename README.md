@@ -1,117 +1,88 @@
-# NetTracer ⚡
+# NetTracer
 
-<p align="center">
-  <img src="https://img.shields.io/badge/Platform-Arch%20Linux-blue?logo=archlinux" alt="Arch Linux" />
-  <img src="https://img.shields.io/badge/Kernel-eBPF%20%2F%20BCC-orange?logo=linux" alt="eBPF BCC" />
-  <img src="https://img.shields.io/badge/GUI-PyQt6-green?logo=qt" alt="PyQt6" />
-  <img src="https://img.shields.io/badge/License-MIT-teal.svg" alt="License MIT" />
-  <img src="https://img.shields.io/badge/Security-Privilege%20Separated-emerald" alt="Privilege Separated" />
-</p>
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Platform: Arch Linux](https://img.shields.io/badge/Platform-Arch%20Linux-1793D1.svg?logo=archlinux&logoColor=white)](#)
+[![Kernel: eBPF / BCC](https://img.shields.io/badge/Kernel-eBPF%20%2F%20BCC-FF6F00.svg?logo=linux&logoColor=white)](#)
+[![Python: 3.10+](https://img.shields.io/badge/Python-3.10%2B-3776AB.svg?logo=python&logoColor=white)](https://www.python.org/)
+[![GUI: PyQt6](https://img.shields.io/badge/GUI-PyQt6-41CD52.svg?logo=qt&logoColor=white)](https://riverbankcomputing.com/software/pyqt/)
+[![Database: SQLite](https://img.shields.io/badge/Database-SQLite-003B57.svg?logo=sqlite&logoColor=white)](#)
 
-<p align="center">
-  <b>NetTracer</b> is a modern, high-performance per-process bandwidth monitoring suite for <b>Arch Linux</b>.<br/>
-  Powered by in-kernel <b>eBPF (BCC)</b> socket tracing, non-blocking <b>Unix Domain Sockets</b>, <b>SQLite</b> persistence, and a native <b>PyQt6</b> desktop interface styled with exact dark-mode aesthetics.
-</p>
+English | [فارسی](README_FA.md)
+
+A native, high-performance per-process network bandwidth monitoring application for **Arch Linux**. Engineered with kernel-level **eBPF (BCC)** probes, non-blocking **Unix Domain Sockets**, **SQLite** historical persistence, and a native **PyQt6** desktop interface styled after modern dark-mode glassmorphic aesthetics.
 
 ---
 
-## 🌟 Key Features
+## Overview
 
-- **Kernel-Level eBPF Tracing**: Intercepts `sock_sendmsg` and `sock_recvmsg` return values via BCC kretprobes for zero-overhead per-PID TX/RX tracking.
-- **Strict Privilege Separation**:
-  - **Monitoring Daemon (`nettracer-daemon`)**: Root service managed by systemd.
-  - **Desktop GUI (`nettracer-gui`)**: Unprivileged user-space PyQt6 application.
-- **High-Performance Unix Domain Sockets**: Real-time JSON telemetry stream across `/run/nettracer/nettracer.sock` (`0666`).
-- **Periodic SQLite Aggregation**: Batched 1-minute application usage records saved into SQLite with retention management.
-- **Native PyQt6 UI (Zero WebEngine)**:
-  - Custom dark palette (`#1a1b1e`, `#25262a`, `#1f2024`) with mint green accents (`#00d28a`).
-  - Circular progress rings rendered via `QPainter` for top bandwidth consumers.
-  - Interactive right navigation dock with 5 views: **Dashboard**, **Charts**, **History**, **Security**, and **Settings**.
-  - Interactive daily bandwidth quota controller with editable `QSpinBox`.
-- **Fault-Tolerant Simulation Fallback**: GUI runs seamlessly in interactive test mode even if the kernel daemon is offline.
+NetTracer provides transparent, real-time insight into network bandwidth consumption on Linux systems without impacting socket performance. Built with strict **Privilege Separation**, it isolates root kernel tracing from unprivileged user-space UI rendering.
+
+Key Highlights:
+- **Zero Overhead Kernel Tracing**: Hooks directly into kernel socket primitives (`sock_sendmsg` and `sock_recvmsg`) via eBPF kretprobes to measure accurate per-PID byte transfers.
+- **Strict Privilege Separation**: Root monitoring daemon runs as an isolated systemd service; user interface runs completely unprivileged in user space.
+- **High-Throughput IPC**: Streamlined JSON telemetry over local Unix Domain Sockets (`/run/nettracer/nettracer.sock`).
+- **Native Qt Desktop Experience**: 100% native PyQt6 widgets and custom QSS (no WebEngine overhead) featuring animated toggle switches, custom QPainter circular progress rings, and real-time bandwidth curves.
+- **1-Minute SQLite Aggregations**: Automatic periodic rolling bucket persistence with configurable data retention policies.
 
 ---
 
-## 🏛 System Architecture
+## Features
 
-```
-+-----------------------------------------------------------------+
-|                    User Space (Unprivileged)                    |
-|                                                                 |
-|   +---------------------------------------------------------+   |
-|   |                      NetTracer GUI                      |   |
-|   |  - Native PyQt6 Desktop Client                          |   |
-|   |  - Custom QSS (#1a1b1e, #25262a, #00d28a)               |   |
-|   |  - Custom QPainter Rings, Curves & Animated Toggles     |   |
-|   |  - Views: Dashboard | Analytics | History | Rules | Prefs|  |
-|   |  - Non-blocking QThread Unix Socket IPC Client          |   |
-|   +----------------------------▲----------------------------+   |
-+--------------------------------|--------------------------------+
-                                 |
-              Unix Domain Socket | /run/nettracer/nettracer.sock
-                (JSON Streaming) | Mode: 0666
-                                 |
-+--------------------------------▼--------------------------------+
-|                     Root Space (Kernel & systemd)               |
-|                                                                 |
-|   +---------------------------------------------------------+   |
-|   |                    NetTracer Daemon                     |   |
-|   |  - In-kernel eBPF Probes (sock_sendmsg & sock_recvmsg)  |   |
-|   |  - Per-PID Atomic Counters in BPF Hash Map              |   |
-|   |  - Process Resolution (/proc/[pid]/comm & cmdline)      |   |
-|   |  - 1-Minute SQLite Bucket Aggregation                   |   |
-|   |  - Broadcast IPC Unix Server                            |   |
-|   +---------------------------------------------------------+   |
-+-----------------------------------------------------------------+
-```
+- **Real-Time Bandwidth Gauges**: Live download and upload speed indicators with sub-second responsiveness.
+- **Per-Process Traffic Inspection**: Scrollable cards displaying PID, application name, icon, received (RX), and transmitted (TX) totals.
+- **Top Bandwidth Consumers**: Custom vector circular progress rings indicating usage percentages of active top consumers.
+- **Traffic Analytics & Curves**: Live dynamic bandwidth visualization rendered with antialiased Qt vector paths.
+- **Historical Usage Logs**: Searchable, timestamped SQLite audit logs with a one-click history purge option.
+- **Network Quota & Rules**: User-configurable daily bandwidth quota limit (`GB/day`) with editable input spinner and warning triggers.
+- **Customizable Preferences**: Toggle launch on boot, strict eBPF packet filtering, and data retention windows (7 days, 30 days, or forever).
+- **Graceful Fallback Mode**: Automatically falls back to simulated telemetry when developing or running without root privileges.
 
 ---
 
-## 📂 Directory Hierarchy
+## Architecture
 
-```
-net-tracer/
-├── bin/
-│   ├── nettracer-daemon         # Daemon entrypoint wrapper
-│   └── nettracer-gui            # GUI entrypoint wrapper
-├── daemon/
-│   ├── __init__.py
-│   ├── bpf_tracer.py            # BCC eBPF kretprobes on socket I/O
-│   ├── db.py                    # SQLite database manager & history log
-│   ├── ipc_server.py            # Unix domain socket broadcast server
-│   ├── process_tracker.py       # PID-to-process mapper and network info
-│   └── service.py               # Main daemon coordinator & systemd loop
-├── gui/
-│   ├── __init__.py
-│   ├── app.py                   # PyQt6 MainWindow & central coordinator
-│   ├── ipc_client.py            # Threaded IPC client with fallback simulation
-│   ├── styles.py                # Design system constants & QSS stylesheets
-│   └── widgets/
-│       ├── __init__.py
-│       ├── circular_progress.py # Custom QPainter circular progress rings
-│       ├── dock.py              # Floating right navigation pill dock
-│       ├── sidebar.py           # Left stats and profile card
-│       ├── toggle_switch.py     # Custom animated iOS/Tailwind toggle switches
-│       ├── views_charts.py      # Charts / Traffic Analytics view
-│       ├── views_dashboard.py   # Dashboard view (speeds & process list)
-│       ├── views_history.py     # History log view with SQLite query
-│       ├── views_security.py    # Network Rules & editable Daily Quota
-│       └── views_settings.py    # Preferences view (Startup, Mode, Retention)
-├── systemd/
-│   └── nettracer.service        # Systemd unit file for root daemon
-├── nettracer_ui.html            # Original prototype reference
-├── requirements.txt             # Python dependencies
-├── LICENSE                      # MIT License
-└── README.md
+```mermaid
+flowchart TD
+    subgraph UserSpace ["User Space (Unprivileged)"]
+        UI["NetTracer PyQt6 GUI"]
+        IPC_C["IPC Client Thread"]
+        Widgets["Custom QPainter Rings & Curves"]
+        UI --- IPC_C
+        UI --- Widgets
+    end
+
+    subgraph RootSpace ["Root Space (systemd)"]
+        Daemon["NetTracer Daemon Service"]
+        Tracer["BCC eBPF Socket Tracer"]
+        Tracker["Process Tracker (/proc)"]
+        DB[("SQLite Database (/var/lib)")]
+        IPC_S["Unix Domain Socket Server"]
+        
+        Daemon --> Tracer
+        Daemon --> Tracker
+        Daemon --> DB
+        Daemon --> IPC_S
+    end
+
+    subgraph KernelSpace ["Linux Kernel"]
+        Probes["kretprobe:sock_sendmsg\nkretprobe:sock_recvmsg"]
+        BPF_Map["BPF_HASH(traffic_map)"]
+        Probes --> BPF_Map
+    end
+
+    IPC_C <== "/run/nettracer/nettracer.sock (0666)" ==> IPC_S
+    Tracer <== "BCC Compiler / BPF Maps" ==> BPF_Map
 ```
 
 ---
 
-## 🚀 Installation & Setup on Arch Linux
+## Getting Started
 
-### 1. Install System Dependencies
+### Prerequisites
 
-Install kernel headers matching your kernel, BCC compiler collection, PyQt6, and psutil:
+NetTracer is designed for Arch Linux and its derivatives (EndeavourOS, Manjaro, Parch Linux).
+
+Install the core system packages via `pacman`:
 
 ```bash
 sudo pacman -S --needed \
@@ -123,48 +94,122 @@ sudo pacman -S --needed \
     sqlite
 ```
 
-*(If you are running the `linux-zen` or `linux-lts` kernel, install `linux-zen-headers` or `linux-lts-headers` instead).*
+> **Note**: Ensure `linux-headers` matches your active running kernel (`uname -r`). If using `linux-zen` or `linux-lts`, install `linux-zen-headers` or `linux-lts-headers` instead.
 
-### 2. Install & Start the Systemd Monitoring Daemon
+---
 
+### Installation
+
+#### 1. Clone the Repository
 ```bash
-# 1. Clone repository
 git clone https://github.com/soheilabbasnia/net-tracer.git
 cd net-tracer
+```
 
-# 2. Deploy to /opt/nettracer
+#### 2. Install Desktop Launcher & User Symlinks
+Install NetTracer to your local user directory:
+```bash
+# Create local bin and application entry
+mkdir -p ~/.local/bin ~/.local/share/applications
+
+# Create launcher symlinks
+ln -sf $(pwd)/bin/nettracer-gui ~/.local/bin/nettracer
+ln -sf $(pwd)/bin/nettracer-daemon ~/.local/bin/nettracer-daemon
+
+# Install desktop shortcut
+cp resources/nettracer.desktop ~/.local/share/applications/
+update-desktop-database ~/.local/share/applications/
+```
+
+#### 3. Enable Systemd Daemon (Root Monitoring Service)
+Deploy and start the background monitoring service:
+```bash
+# Copy systemd unit file
+sudo cp systemd/nettracer.service /etc/systemd/system/
+
+# Install daemon files to /opt/nettracer
 sudo mkdir -p /opt/nettracer
 sudo cp -r daemon bin requirements.txt /opt/nettracer/
 
-# 3. Enable and start the systemd service
-sudo cp systemd/nettracer.service /etc/systemd/system/
+# Reload systemd and start service
 sudo systemctl daemon-reload
 sudo systemctl enable --now nettracer.service
+```
 
-# 4. Check status
+Verify service status:
+```bash
 sudo systemctl status nettracer.service
 ```
 
-### 3. Launch the Desktop GUI
+---
 
-Run the GUI as your standard desktop user:
+## Usage
+
+### Launching the Desktop Application
+
+You can launch NetTracer directly from your application launcher (KDE, GNOME, Rofi, dmenu) or via command line:
 
 ```bash
-./bin/nettracer-gui
+nettracer
+```
+
+If the root daemon is active, NetTracer connects to `/run/nettracer/nettracer.sock` and begins streaming live network metrics. If the daemon is not running yet, NetTracer automatically activates an interactive simulation mode so the interface remains fully operational for inspection.
+
+---
+
+## Project Structure
+
+```text
+net-tracer/
+├── bin/
+│   ├── nettracer-daemon         # Executable entrypoint for monitoring daemon
+│   └── nettracer-gui            # Executable entrypoint for desktop GUI
+├── daemon/
+│   ├── __init__.py
+│   ├── bpf_tracer.py            # BCC eBPF kretprobes on socket I/O
+│   ├── db.py                    # SQLite database persistence & history query
+│   ├── ipc_server.py            # Unix domain socket broadcast server
+│   ├── process_tracker.py       # PID-to-process resolver via /proc
+│   └── service.py               # Main monitoring daemon coordinator
+├── gui/
+│   ├── __init__.py
+│   ├── app.py                   # PyQt6 MainWindow & controller
+│   ├── ipc_client.py            # Threaded IPC client with fallback simulation
+│   ├── styles.py                # Design system & QSS stylesheets
+│   └── widgets/
+│       ├── __init__.py
+│       ├── circular_progress.py # Custom QPainter circular progress rings
+│       ├── dock.py              # Floating right navigation pill dock
+│       ├── sidebar.py           # Left profile and metrics panel
+│       ├── toggle_switch.py     # Custom animated iOS/Tailwind toggle switches
+│       ├── views_charts.py      # Charts / Traffic Analytics view
+│       ├── views_dashboard.py   # Dashboard view with speed box & process cards
+│       ├── views_history.py     # History log view with SQLite records
+│       ├── views_security.py    # Network Rules & editable Daily Quota (QSpinBox)
+│       └── views_settings.py    # Preferences view (Startup, Mode, Retention)
+├── resources/
+│   └── nettracer.desktop        # Linux desktop launcher entry
+├── systemd/
+│   └── nettracer.service        # Systemd unit file for root daemon
+├── nettracer_ui.html            # Original HTML/Tailwind design reference
+├── requirements.txt             # Python dependencies
+├── LICENSE                      # MIT License
+├── README.md                    # English Documentation
+└── README_FA.md                 # Persian Documentation
 ```
 
 ---
 
-## 🔒 Security Hardening
+## Security & Privilege Separation
 
-- The GUI runs completely unprivileged in **User Space** and communicates strictly through the Unix Domain Socket.
-- The root daemon runs with systemd capability bounding sets:
+- **Unprivileged Desktop Application**: The GUI runs under your standard desktop user account without elevated permissions, protecting your graphical environment.
+- **Hardened Systemd Service**: The daemon runs with minimal kernel capabilities:
   `CAP_BPF`, `CAP_NET_ADMIN`, `CAP_PERFMON`, `CAP_SYS_RESOURCE`, `CAP_SYS_ADMIN`
-- Filesystem protections enabled: `ProtectSystem=full`, `ProtectHome=true`, and private runtime directories.
+- **Filesystem Isolation**: The daemon enforces `ProtectSystem=full`, `ProtectHome=true`, and private runtime directories (`RuntimeDirectory=nettracer`).
 
 ---
 
-## 📄 License
+## License
 
 This project is licensed under the terms of the [MIT License](LICENSE).  
 Copyright (c) 2026 Soheil Abbasnia.
