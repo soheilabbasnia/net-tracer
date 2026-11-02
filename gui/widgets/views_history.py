@@ -5,7 +5,7 @@ Displays persisted 1-minute historical bandwidth records retrieved from SQLite.
 
 from typing import List, Dict, Any
 from PyQt6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QLabel, QFrame, QPushButton, QScrollArea
+    QWidget, QVBoxLayout, QHBoxLayout, QLabel, QFrame, QPushButton, QScrollArea, QSizePolicy
 )
 from PyQt6.QtCore import Qt, pyqtSignal
 
@@ -13,12 +13,13 @@ from gui.styles import (
     COLOR_CARD_DARK, COLOR_CARD_DARKER, COLOR_ACCENT,
     COLOR_TEXT_MAIN, COLOR_TEXT_MUTED
 )
+from gui.widgets.icons import VectorIcons
 
 
 class HistoryLogItem(QFrame):
     """Row widget representing a single historical log entry."""
 
-    def __init__(self, time_str: str, app_name: str, icon_str: str, dl_str: str, ul_str: str, parent=None):
+    def __init__(self, time_str: str, app_name: str, icon_key: str, dl_str: str, ul_str: str, parent=None):
         super().__init__(parent)
         self.setStyleSheet(f"""
             QFrame#HistoryLogItem {{
@@ -38,23 +39,33 @@ class HistoryLogItem(QFrame):
 
         # 1. Timestamp (25% width)
         time_lbl = QLabel(time_str)
-        time_lbl.setStyleSheet(f"color: {COLOR_TEXT_MUTED}; font-size: 12px;")
+        time_lbl.setStyleSheet(f"color: {COLOR_TEXT_MUTED}; font-size: 12px; border: none; background: transparent;")
         layout.addWidget(time_lbl, stretch=1)
 
-        # 2. App Name & Icon (25% width)
-        app_lbl = QLabel(f"{icon_str}  {app_name}")
-        app_lbl.setStyleSheet(f"color: {COLOR_TEXT_MAIN}; font-size: 13px; font-weight: 600;")
-        layout.addWidget(app_lbl, stretch=1)
+        # 2. App Name & Vector Icon (25% width)
+        app_box = QHBoxLayout()
+        app_box.setSpacing(10)
+        icon_lbl = QLabel()
+        icon_lbl.setPixmap(VectorIcons.render_pixmap(icon_key, size=18, color=COLOR_ACCENT))
+        icon_lbl.setStyleSheet("border: none; background: transparent;")
+
+        app_lbl = QLabel(app_name)
+        app_lbl.setStyleSheet(f"color: {COLOR_TEXT_MAIN}; font-size: 13px; font-weight: 600; border: none; background: transparent;")
+
+        app_box.addWidget(icon_lbl)
+        app_box.addWidget(app_lbl)
+        app_box.addStretch()
+        layout.addLayout(app_box, stretch=1)
 
         # 3. Download (25% width, aligned right)
         dl_lbl = QLabel(dl_str)
-        dl_lbl.setStyleSheet(f"color: {COLOR_ACCENT}; font-size: 13px; font-weight: 500;")
+        dl_lbl.setStyleSheet(f"color: {COLOR_ACCENT}; font-size: 13px; font-weight: 500; border: none; background: transparent;")
         dl_lbl.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
         layout.addWidget(dl_lbl, stretch=1)
 
         # 4. Upload (25% width, aligned right)
         ul_lbl = QLabel(ul_str)
-        ul_lbl.setStyleSheet(f"color: {COLOR_TEXT_MUTED}; font-size: 13px;")
+        ul_lbl.setStyleSheet(f"color: {COLOR_TEXT_MUTED}; font-size: 13px; border: none; background: transparent;")
         ul_lbl.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
         layout.addWidget(ul_lbl, stretch=1)
 
@@ -66,13 +77,15 @@ class HistoryView(QWidget):
 
     def __init__(self, parent=None):
         super().__init__(parent)
+        self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         self._setup_ui()
 
     def _setup_ui(self):
         main_layout = QVBoxLayout(self)
-        main_layout.setContentsMargins(10, 10, 10, 10)
+        main_layout.setContentsMargins(0, 0, 0, 0)
 
         card = QFrame()
+        card.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         card.setStyleSheet(f"""
             QFrame#HistoryCard {{
                 background-color: {COLOR_CARD_DARK};
@@ -88,14 +101,18 @@ class HistoryView(QWidget):
 
         # Top Bar: APP DATA LOG + Clear History Button
         top_bar = QHBoxLayout()
-        header_lbl = QLabel("🕒 APP DATA LOG")
-        header_lbl.setStyleSheet(f"color: {COLOR_TEXT_MUTED}; font-size: 11px; font-weight: 700; letter-spacing: 1.2px;")
+        header_icon = QLabel()
+        header_icon.setPixmap(VectorIcons.render_pixmap("history", size=16, color=COLOR_ACCENT))
+        header_icon.setStyleSheet("border: none; background: transparent;")
+        header_lbl = QLabel("APP DATA LOG")
+        header_lbl.setStyleSheet(f"color: {COLOR_TEXT_MUTED}; font-size: 11px; font-weight: 700; letter-spacing: 1.2px; border: none;")
 
         self.btn_clear = QPushButton("Clear History")
         self.btn_clear.setProperty("class", "subtle-btn")
         self.btn_clear.setCursor(Qt.CursorShape.PointingHandCursor)
         self.btn_clear.clicked.connect(self.clear_requested.emit)
 
+        top_bar.addWidget(header_icon)
         top_bar.addWidget(header_lbl)
         top_bar.addStretch()
         top_bar.addWidget(self.btn_clear)
@@ -123,17 +140,16 @@ class HistoryView(QWidget):
 
     def _populate_mockup_items(self):
         sample_logs = [
-            ("Today, 10:30 AM", "Firefox", "🦊", "+450 MB (DL)", "12 MB (UL)"),
-            ("Today, 09:15 AM", "Docker Daemon", "🐳", "+1.2 GB (DL)", "300 MB (UL)"),
-            ("Yesterday", "System Updates", "🐧", "+800 MB (DL)", "2 MB (UL)"),
+            ("Today, 10:30 AM", "Firefox", "firefox", "+450 MB (DL)", "12 MB (UL)"),
+            ("Today, 09:15 AM", "Docker Daemon", "docker", "+1.2 GB (DL)", "300 MB (UL)"),
+            ("Yesterday", "System Updates", "pacman", "+800 MB (DL)", "2 MB (UL)"),
         ]
-        for t, app, icon, dl, ul in sample_logs:
-            item = HistoryLogItem(t, app, icon, dl, ul)
+        for t, app, icon_key, dl, ul in sample_logs:
+            item = HistoryLogItem(t, app, icon_key, dl, ul)
             self.items_layout.addWidget(item)
 
     def set_history_records(self, records: List[Dict[str, Any]]):
         """Refreshes history list with live records from SQLite."""
-        # Clear existing items
         while self.items_layout.count() > 0:
             child = self.items_layout.takeAt(0)
             if child.widget():
@@ -141,7 +157,7 @@ class HistoryView(QWidget):
 
         if not records:
             empty_lbl = QLabel("No history records yet.")
-            empty_lbl.setStyleSheet(f"color: {COLOR_TEXT_MUTED}; font-size: 13px; padding: 20px;")
+            empty_lbl.setStyleSheet(f"color: {COLOR_TEXT_MUTED}; font-size: 13px; padding: 20px; border: none;")
             empty_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
             self.items_layout.addWidget(empty_lbl)
             return
@@ -151,26 +167,24 @@ class HistoryView(QWidget):
             dl = self._format_bytes(r.get("rx_bytes", 0))
             ul = self._format_bytes(r.get("tx_bytes", 0))
             ts = r.get("timestamp", "")
-            icon = self._get_icon_symbol(app)
-            item = HistoryLogItem(ts, app, icon, f"+{dl} (DL)", f"{ul} (UL)")
+            icon_key = self._get_icon_key(app)
+            item = HistoryLogItem(ts, app, icon_key, f"+{dl} (DL)", f"{ul} (UL)")
             self.items_layout.addWidget(item)
 
     @staticmethod
-    def _get_icon_symbol(name: str) -> str:
+    def _get_icon_key(name: str) -> str:
         nl = name.lower()
         if "firefox" in nl:
-            return "🦊"
+            return "firefox"
         elif "chrome" in nl:
-            return "🌐"
+            return "chrome"
         elif "docker" in nl:
-            return "🐳"
-        elif "update" in nl or "linux" in nl:
-            return "🐧"
+            return "docker"
         elif "telegram" in nl:
-            return "✈"
+            return "telegram"
         elif "spotify" in nl:
-            return "🎵"
-        return "⚙"
+            return "spotify"
+        return "pacman"
 
     @staticmethod
     def _format_bytes(b: int) -> str:

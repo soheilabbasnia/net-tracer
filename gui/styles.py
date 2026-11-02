@@ -59,7 +59,7 @@ QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {{
 QPushButton.pill-btn {{
     background-color: {COLOR_ACCENT};
     color: {COLOR_BG_DARK};
-    font-weight: 600;
+    font-weight: 700;
     font-size: 13px;
     border-radius: 20px;
     padding: 10px 18px;
@@ -78,7 +78,8 @@ QPushButton.pill-btn:pressed {{
 QPushButton.subtle-btn {{
     background-color: rgba(255, 255, 255, 0.05);
     color: {COLOR_TEXT_MUTED};
-    font-size: 12px;
+    font-size: 11px;
+    font-weight: 600;
     border-radius: 14px;
     padding: 6px 14px;
     border: 1px solid rgba(255, 255, 255, 0.08);
@@ -87,6 +88,7 @@ QPushButton.subtle-btn {{
 QPushButton.subtle-btn:hover {{
     background-color: rgba(255, 255, 255, 0.1);
     color: {COLOR_TEXT_MAIN};
+    border: 1px solid rgba(255, 255, 255, 0.18);
 }}
 
 /* Form Controls: QSpinBox (for Quota GB) */
@@ -96,7 +98,7 @@ QSpinBox, QDoubleSpinBox {{
     border-radius: 8px;
     color: {COLOR_TEXT_MAIN};
     padding: 4px 8px;
-    font-size: 14px;
+    font-size: 13px;
     font-weight: 600;
 }}
 
@@ -112,12 +114,13 @@ QSpinBox::up-button, QSpinBox::down-button {{
 /* Form Controls: QComboBox (for Data Retention) */
 QComboBox {{
     background-color: {COLOR_BG_DARK};
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 10px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 12px;
     color: {COLOR_TEXT_MAIN};
-    padding: 8px 16px;
+    padding: 8px 32px 8px 16px;
     font-size: 13px;
-    min-width: 120px;
+    font-weight: 500;
+    min-width: 110px;
 }}
 
 QComboBox:hover {{
@@ -129,8 +132,19 @@ QComboBox:focus {{
 }}
 
 QComboBox::drop-down {{
+    subcontrol-origin: padding;
+    subcontrol-position: top right;
+    width: 28px;
     border: none;
-    padding-right: 10px;
+}}
+
+QComboBox::down-arrow {{
+    width: 0px;
+    height: 0px;
+    border-left: 4px solid transparent;
+    border-right: 4px solid transparent;
+    border-top: 5px solid {COLOR_TEXT_MUTED};
+    margin-right: 12px;
 }}
 
 QComboBox QAbstractItemView {{

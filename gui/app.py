@@ -6,10 +6,10 @@ Assembles native PyQt6 components, custom styling, IPC communication, and page v
 import sys
 import os
 from PyQt6.QtWidgets import (
-    QApplication, QMainWindow, QWidget, QHBoxLayout, QStackedWidget
+    QApplication, QMainWindow, QWidget, QHBoxLayout, QStackedWidget, QSizePolicy
 )
 from PyQt6.QtCore import Qt
-from PyQt6.QtGui import QPainter, QColor, QIcon, QPainterPath
+from PyQt6.QtGui import QPainter, QColor, QIcon, QPen
 
 from gui.styles import APPLICATION_QSS, COLOR_BG_DARK, COLOR_ACCENT
 from gui.widgets.sidebar import SidebarWidget
@@ -23,36 +23,27 @@ from gui.ipc_client import IPCClientThread
 
 
 class BackgroundDecoratedWindow(QMainWindow):
-    """Main window with subtle geometric diamond accents matching prototype."""
+    """Main window with subtle background ambient grid matching prototype."""
 
     def __init__(self):
         super().__init__()
 
     def paintEvent(self, event):
         super().paintEvent(event)
+        # Subtle ambient vertical grid line background behind cards (opacity 2-3%)
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-
-        # Subtle decorative mint diamonds from prototype
         w = self.width()
         h = self.height()
 
-        diamonds = [
-            (int(w * 0.25), int(h * 0.15), 6, 178),  # 70% opacity
-            (int(w * 0.75), int(h * 0.85), 6, 178),
-            (int(w * 0.75), int(h * 0.05), 5, 76),   # 30% opacity
-        ]
+        grid_pen = QPen(QColor(255, 255, 255, 7), 1)
+        painter.setPen(grid_pen)
+        # 4 subtle vertical column guides
+        for frac in (0.25, 0.50, 0.75):
+            x = int(w * frac)
+            painter.drawLine(x, 0, x, h)
 
-        for cx, cy, sz, alpha in diamonds:
-            painter.setBrush(QColor(0, 210, 138, alpha))
-            painter.setPen(Qt.PenStyle.NoPen)
-            path = QPainterPath()
-            path.moveTo(cx, cy - sz)
-            path.lineTo(cx + sz, cy)
-            path.lineTo(cx, cy + sz)
-            path.lineTo(cx - sz, cy)
-            path.closeSubpath()
-            painter.drawPath(path)
+        painter.end()
 
 
 class NetTracerApp(BackgroundDecoratedWindow):
@@ -61,8 +52,8 @@ class NetTracerApp(BackgroundDecoratedWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("NetTracer - Bandwidth Monitor")
-        self.resize(1340, 780)
-        self.setMinimumSize(1100, 680)
+        self.resize(1360, 800)
+        self.setMinimumSize(1120, 700)
 
         self._setup_ui()
         self._init_ipc()
@@ -72,15 +63,17 @@ class NetTracerApp(BackgroundDecoratedWindow):
         self.setCentralWidget(central)
 
         main_layout = QHBoxLayout(central)
-        main_layout.setContentsMargins(28, 28, 28, 28)
+        main_layout.setContentsMargins(24, 24, 24, 24)
         main_layout.setSpacing(24)
 
-        # 1. Left Sidebar
+        # 1. Left Sidebar (Fixed width, expands vertically)
         self.sidebar = SidebarWidget(self)
         main_layout.addWidget(self.sidebar)
 
-        # 2. Central Content Area: Stacked Views
+        # 2. Central Content Area: Stacked Views (Expands fully in both directions)
         self.stack = QStackedWidget(self)
+        self.stack.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+
         self.view_dashboard = DashboardView(self)
         self.view_charts = ChartsView(self)
         self.view_history = HistoryView(self)
@@ -95,7 +88,7 @@ class NetTracerApp(BackgroundDecoratedWindow):
 
         main_layout.addWidget(self.stack, stretch=1)
 
-        # 3. Right Floating Dock
+        # 3. Right Floating Dock (Fixed width, vertically centered)
         self.dock = NavigationDock(self)
         main_layout.addWidget(self.dock, alignment=Qt.AlignmentFlag.AlignVCenter)
 

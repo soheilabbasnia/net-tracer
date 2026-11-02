@@ -4,14 +4,16 @@ Configures startup daemon behavior, eBPF strictness, and database retention peri
 """
 
 from PyQt6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QLabel, QFrame, QComboBox
+    QWidget, QVBoxLayout, QHBoxLayout, QLabel, QFrame, QComboBox, QSizePolicy
 )
 from PyQt6.QtCore import Qt, pyqtSignal
 
 from gui.styles import (
-    COLOR_CARD_DARK, COLOR_CARD_DARKER, COLOR_TEXT_MAIN, COLOR_TEXT_MUTED
+    COLOR_CARD_DARK, COLOR_CARD_DARKER, COLOR_ACCENT,
+    COLOR_TEXT_MAIN, COLOR_TEXT_MUTED
 )
 from gui.widgets.toggle_switch import ToggleSwitch
+from gui.widgets.icons import VectorIcons
 
 
 class SettingItemRow(QFrame):
@@ -38,10 +40,10 @@ class SettingItemRow(QFrame):
         text_col.setSpacing(4)
 
         t_lbl = QLabel(title)
-        t_lbl.setStyleSheet(f"color: {COLOR_TEXT_MAIN}; font-size: 15px; font-weight: 600;")
+        t_lbl.setStyleSheet(f"color: {COLOR_TEXT_MAIN}; font-size: 15px; font-weight: 600; border: none; background: transparent;")
 
         s_lbl = QLabel(subtitle)
-        s_lbl.setStyleSheet(f"color: {COLOR_TEXT_MUTED}; font-size: 12px;")
+        s_lbl.setStyleSheet(f"color: {COLOR_TEXT_MUTED}; font-size: 12px; border: none; background: transparent;")
 
         text_col.addWidget(t_lbl)
         text_col.addWidget(s_lbl)
@@ -58,13 +60,15 @@ class SettingsView(QWidget):
 
     def __init__(self, parent=None):
         super().__init__(parent)
+        self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         self._setup_ui()
 
     def _setup_ui(self):
         main_layout = QVBoxLayout(self)
-        main_layout.setContentsMargins(10, 10, 10, 10)
+        main_layout.setContentsMargins(0, 0, 0, 0)
 
         card = QFrame()
+        card.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         card.setStyleSheet(f"""
             QFrame#SettingsCard {{
                 background-color: {COLOR_CARD_DARK};
@@ -78,10 +82,19 @@ class SettingsView(QWidget):
         card_layout.setContentsMargins(32, 28, 32, 28)
         card_layout.setSpacing(16)
 
-        # Header: PREFERENCES
-        header_lbl = QLabel("⚙ PREFERENCES")
-        header_lbl.setStyleSheet(f"color: {COLOR_TEXT_MUTED}; font-size: 11px; font-weight: 700; letter-spacing: 1.2px;")
-        card_layout.addWidget(header_lbl)
+        # Header: PREFERENCES with vector gear icon
+        header_row = QHBoxLayout()
+        header_icon = QLabel()
+        header_icon.setPixmap(VectorIcons.render_pixmap("settings", size=16, color=COLOR_ACCENT))
+        header_icon.setStyleSheet("border: none; background: transparent;")
+
+        header_lbl = QLabel("PREFERENCES")
+        header_lbl.setStyleSheet(f"color: {COLOR_TEXT_MUTED}; font-size: 11px; font-weight: 700; letter-spacing: 1.2px; border: none;")
+
+        header_row.addWidget(header_icon)
+        header_row.addWidget(header_lbl)
+        header_row.addStretch()
+        card_layout.addLayout(header_row)
 
         # Setting 1: Launch at Startup
         self.toggle_startup = ToggleSwitch(checked=True)

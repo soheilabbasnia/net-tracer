@@ -4,24 +4,25 @@ Visualizes bandwidth trends and network telemetry metrics.
 """
 
 from collections import deque
-from PyQt6.QtWidgets import QWidget, QVBoxLayout, QLabel, QFrame
-from PyQt6.QtCore import Qt, QRectF
-from PyQt6.QtGui import QPainter, QColor, QPen, QPainterPath
+from PyQt6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QLabel, QFrame, QSizePolicy
+from PyQt6.QtCore import Qt, QRectF, QPointF
+from PyQt6.QtGui import QPainter, QColor, QPen, QPainterPath, QLinearGradient
 
 from gui.styles import (
-    COLOR_CARD_DARK, COLOR_CARD_DARKER, COLOR_ACCENT,
-    COLOR_TEXT_MAIN, COLOR_TEXT_MUTED
+    COLOR_CARD_DARK, COLOR_ACCENT, COLOR_TEXT_MAIN, COLOR_TEXT_MUTED
 )
+from gui.widgets.icons import VectorIcons
 
 
 class RealtimeBandwidthGraph(QWidget):
-    """Real-time live bandwidth line chart drawn natively with QPainter."""
+    """Real-time live bandwidth line chart with gradient area fill."""
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setMinimumHeight(140)
-        self.dl_history = deque([1.2, 1.8, 2.4, 2.1, 2.8, 2.4, 3.1, 2.4, 2.0, 2.7, 2.4], maxlen=30)
-        self.ul_history = deque([0.4, 0.6, 0.8, 0.5, 0.9, 0.8, 1.1, 0.8, 0.7, 0.9, 0.8], maxlen=30)
+        self.setMinimumHeight(150)
+        self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+        self.dl_history = deque([1.2, 1.8, 2.4, 2.1, 2.8, 2.4, 3.1, 2.4, 2.0, 2.7, 2.4], maxlen=40)
+        self.ul_history = deque([0.4, 0.6, 0.8, 0.5, 0.9, 0.8, 1.1, 0.8, 0.7, 0.9, 0.8], maxlen=40)
 
     def add_point(self, dl: float, ul: float):
         self.dl_history.append(dl)
@@ -32,46 +33,65 @@ class RealtimeBandwidthGraph(QWidget):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
 
-        w = self.width()
-        h = self.height()
-        if w < 10 or h < 10:
+        w = float(self.width())
+        h = float(self.height())
+        if w < 20 or h < 20:
             return
 
-        max_val = max(max(self.dl_history, default=1.0), 4.0)
+        max_val = max(max(self.dl_history, default=1.0), max(self.ul_history, default=1.0), 3.5)
 
-        # Draw grid lines
+        # Subtle grid horizontal lines
         painter.setPen(QPen(QColor(255, 255, 255, 12), 1, Qt.PenStyle.DashLine))
-        painter.drawLine(0, int(h * 0.25), w, int(h * 0.25))
-        painter.drawLine(0, int(h * 0.50), w, int(h * 0.50))
-        painter.drawLine(0, int(h * 0.75), w, int(h * 0.75))
+        for frac in (0.25, 0.5, 0.75):
+            y = int(h * frac)
+            painter.drawLine(0, y, int(w), y)
 
         step_x = w / max(1, len(self.dl_history) - 1)
 
-        # 1. Download Path (Mint Green)
+        # 1. Download Path (Mint Green) with subtle gradient fill
         dl_path = QPainterPath()
+        fill_path = QPainterPath()
+        fill_path.moveTo(0, h)
+
         for i, val in enumerate(self.dl_history):
             x = i * step_x
-            y = h - (val / max_val) * (h - 20) - 10
+            y = h - (val / max_val) * (h - 24) - 12
             if i == 0:
                 dl_path.moveTo(x, y)
+                fill_path.lineTo(x, y)
             else:
                 dl_path.lineTo(x, y)
+                fill_path.lineTo(x, y)
 
+        fill_path.lineTo(w, h)
+        fill_path.closeSubpath()
+
+        # Gradient area fill
+        grad = QLinearGradient(0, 0, 0, h)
+        grad.setColorAt(0.0, QColor(0, 210, 138, 45))
+        grad.setColorAt(1.0, QColor(0, 210, 138, 0))
+        painter.setPen(Qt.PenStyle.NoPen)
+        painter.setBrush(grad)
+        painter.drawPath(fill_path)
+
+        # Stroke line
         painter.setPen(QPen(QColor(COLOR_ACCENT), 2.5))
+        painter.setBrush(Qt.BrushStyle.NoBrush)
         painter.drawPath(dl_path)
 
-        # 2. Upload Path (White)
+        # 2. Upload Path (Muted White)
         ul_path = QPainterPath()
         for i, val in enumerate(self.ul_history):
             x = i * step_x
-            y = h - (val / max_val) * (h - 20) - 10
+            y = h - (val / max_val) * (h - 24) - 12
             if i == 0:
                 ul_path.moveTo(x, y)
             else:
                 ul_path.lineTo(x, y)
 
-        painter.setPen(QPen(QColor(255, 255, 255, 180), 2, Qt.PenStyle.DashLine))
+        painter.setPen(QPen(QColor(255, 255, 255, 140), 1.8, Qt.PenStyle.DashLine))
         painter.drawPath(ul_path)
+        painter.end()
 
 
 class ChartsView(QWidget):
@@ -79,13 +99,15 @@ class ChartsView(QWidget):
 
     def __init__(self, parent=None):
         super().__init__(parent)
+        self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         self._setup_ui()
 
     def _setup_ui(self):
         main_layout = QVBoxLayout(self)
-        main_layout.setContentsMargins(10, 10, 10, 10)
+        main_layout.setContentsMargins(0, 0, 0, 0)
 
         card = QFrame()
+        card.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         card.setStyleSheet(f"""
             QFrame#ChartsCard {{
                 background-color: {COLOR_CARD_DARK};
@@ -99,17 +121,32 @@ class ChartsView(QWidget):
         card_layout.setContentsMargins(32, 28, 32, 28)
         card_layout.setSpacing(20)
 
-        # Header: TRAFFIC ANALYTICS
-        header_lbl = QLabel("📈 TRAFFIC ANALYTICS")
-        header_lbl.setStyleSheet(f"color: {COLOR_TEXT_MUTED}; font-size: 11px; font-weight: 700; letter-spacing: 1.2px;")
-        card_layout.addWidget(header_lbl)
+        # Header: TRAFFIC ANALYTICS with vector icon
+        header_row = QHBoxLayout()
+        header_icon = QLabel()
+        header_icon.setPixmap(VectorIcons.render_pixmap("charts", size=16, color=COLOR_ACCENT))
+        header_icon.setStyleSheet("border: none; background: transparent;")
+        header_lbl = QLabel("TRAFFIC ANALYTICS")
+        header_lbl.setStyleSheet(f"color: {COLOR_TEXT_MUTED}; font-size: 11px; font-weight: 700; letter-spacing: 1.2px; border: none; background: transparent;")
+        header_row.addWidget(header_icon)
+        header_row.addWidget(header_lbl)
+        header_row.addStretch()
+        card_layout.addLayout(header_row)
 
-        # Dashed container box matching screenshot
+        # Dashed container box - correctly scoped so borders don't leak into children!
         dashed_box = QFrame()
-        dashed_box.setStyleSheet(f"""
-            background-color: rgba(31, 32, 36, 0.4);
-            border: 2px dashed rgba(255, 255, 255, 0.1);
-            border-radius: 28px;
+        dashed_box.setObjectName("DashedBox")
+        dashed_box.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+        dashed_box.setStyleSheet("""
+            QFrame#DashedBox {
+                background-color: rgba(31, 32, 36, 0.4);
+                border: 2px dashed rgba(255, 255, 255, 0.1);
+                border-radius: 28px;
+            }
+            QFrame#DashedBox QLabel {
+                border: none;
+                background: transparent;
+            }
         """)
 
         dash_layout = QVBoxLayout(dashed_box)
@@ -117,9 +154,10 @@ class ChartsView(QWidget):
         dash_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
         dash_layout.setSpacing(14)
 
-        icon_lbl = QLabel("📊")
+        # Vector presentation chart icon
+        icon_lbl = QLabel()
+        icon_lbl.setPixmap(VectorIcons.render_pixmap("presentation_chart", size=54, color=COLOR_TEXT_MUTED))
         icon_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        icon_lbl.setStyleSheet("font-size: 54px; opacity: 0.5;")
         dash_layout.addWidget(icon_lbl)
 
         title_lbl = QLabel("Bandwidth Visualization")

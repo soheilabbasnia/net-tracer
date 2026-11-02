@@ -4,16 +4,17 @@ Renders profile card, interface metrics, circular progress consumers, and action
 """
 
 from PyQt6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QFrame
+    QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QFrame, QSizePolicy
 )
 from PyQt6.QtCore import Qt, pyqtSignal, QRectF
-from PyQt6.QtGui import QPainter, QColor, QPen, QFont, QPainterPath
+from PyQt6.QtGui import QPainter, QColor, QPen, QFont, QPainterPath, QIcon
 
 from gui.styles import (
     COLOR_CARD_DARK, COLOR_CARD_DARKER, COLOR_ACCENT,
-    COLOR_TEXT_MAIN, COLOR_TEXT_MUTED, COLOR_PROGRESS_BG
+    COLOR_TEXT_MAIN, COLOR_TEXT_MUTED, COLOR_PROGRESS_BG, COLOR_BG_DARK
 )
 from gui.widgets.circular_progress import CircularProgressRing
+from gui.widgets.icons import VectorIcons
 
 
 class ActivityAvatar(QWidget):
@@ -51,6 +52,7 @@ class ActivityAvatar(QWidget):
         path.lineTo(cx + 24, cy)
 
         painter.drawPath(path)
+        painter.end()
 
 
 class SidebarWidget(QFrame):
@@ -62,6 +64,7 @@ class SidebarWidget(QFrame):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setFixedWidth(300)
+        self.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Expanding)
         self._is_suspended = False
 
         self._setup_ui()
@@ -144,17 +147,19 @@ class SidebarWidget(QFrame):
 
         layout.addStretch()
 
-        # Bottom Action Buttons
+        # Bottom Action Buttons with vector icons
         btn_layout = QHBoxLayout()
         btn_layout.setSpacing(12)
 
-        self.btn_suspend = QPushButton("⏸ Suspend")
+        self.btn_suspend = QPushButton(" Suspend")
         self.btn_suspend.setProperty("class", "pill-btn")
+        self.btn_suspend.setIcon(QIcon(VectorIcons.render_pixmap("suspend", size=16, color=COLOR_BG_DARK, fill=True)))
         self.btn_suspend.setCursor(Qt.CursorShape.PointingHandCursor)
         self.btn_suspend.clicked.connect(self._toggle_suspend)
 
-        self.btn_export = QPushButton("⇪ Export")
+        self.btn_export = QPushButton(" Export")
         self.btn_export.setProperty("class", "pill-btn")
+        self.btn_export.setIcon(QIcon(VectorIcons.render_pixmap("export", size=16, color=COLOR_BG_DARK)))
         self.btn_export.setCursor(Qt.CursorShape.PointingHandCursor)
         self.btn_export.clicked.connect(self.export_clicked.emit)
 
@@ -162,6 +167,17 @@ class SidebarWidget(QFrame):
         btn_layout.addWidget(self.btn_export)
 
         layout.addLayout(btn_layout)
+
+    def paintEvent(self, event):
+        super().paintEvent(event)
+        # Subtle top-left folder tab accent like in prototype:
+        # absolute top-0 left-0 w-24 h-1 bg-accent/50 rounded-br-full
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        painter.setPen(Qt.PenStyle.NoPen)
+        painter.setBrush(QColor(0, 210, 138, 128))
+        painter.drawRoundedRect(QRectF(30, 0, 75, 3.5), 2, 2)
+        painter.end()
 
     def _create_metric_row(self, label_text: str, val_widget: QLabel) -> QWidget:
         row = QWidget()
@@ -182,11 +198,13 @@ class SidebarWidget(QFrame):
     def _toggle_suspend(self):
         self._is_suspended = not self._is_suspended
         if self._is_suspended:
-            self.btn_suspend.setText("▶ Resume")
+            self.btn_suspend.setText(" Resume")
+            self.btn_suspend.setIcon(QIcon(VectorIcons.render_pixmap("resume", size=16, color=COLOR_BG_DARK, fill=True)))
             self.status_lbl.setText("DAEMON SUSPENDED")
             self.status_lbl.setStyleSheet("color: #f59e0b; font-size: 10px; font-weight: 700; letter-spacing: 1.5px;")
         else:
-            self.btn_suspend.setText("⏸ Suspend")
+            self.btn_suspend.setText(" Suspend")
+            self.btn_suspend.setIcon(QIcon(VectorIcons.render_pixmap("suspend", size=16, color=COLOR_BG_DARK, fill=True)))
             self.status_lbl.setText("LIVE DAEMON ACTIVE | ROOT")
             self.status_lbl.setStyleSheet(f"color: {COLOR_ACCENT}; font-size: 10px; font-weight: 700; letter-spacing: 1.5px;")
         self.suspend_clicked.emit(self._is_suspended)
@@ -207,6 +225,5 @@ class SidebarWidget(QFrame):
         for i, ring in enumerate(self.rings):
             if i < len(top_consumers):
                 c = top_consumers[i]
-                # Shorten name if needed
                 short_name = c.get("name", "").split()[0]
                 ring.set_data(short_name, c.get("percentage", 0))

@@ -5,25 +5,26 @@ Main view showcasing real-time bandwidth speeds, live status, and active per-pro
 
 from typing import List, Dict, Any
 from PyQt6.QtWidgets import (
-    QWidget, QHBoxLayout, QVBoxLayout, QLabel, QScrollArea, QFrame, QPushButton
+    QWidget, QHBoxLayout, QVBoxLayout, QLabel, QScrollArea, QFrame, QPushButton, QSizePolicy
 )
 from PyQt6.QtCore import Qt
-from PyQt6.QtGui import QFont
+from PyQt6.QtGui import QFont, QPixmap
 
 from gui.styles import (
     COLOR_CARD_DARK, COLOR_CARD_DARKER, COLOR_ACCENT,
     COLOR_TEXT_MAIN, COLOR_TEXT_MUTED, COLOR_BG_DARK
 )
+from gui.widgets.icons import VectorIcons
 
 
 class ProcessCardItem(QFrame):
     """Card widget representing an active monitored process."""
 
-    def __init__(self, pid: int, name: str, icon_symbol: str, rx_str: str, tx_str: str, parent=None):
+    def __init__(self, pid: int, name: str, icon_key: str, rx_str: str, tx_str: str, parent=None):
         super().__init__(parent)
-        self._setup_ui(pid, name, icon_symbol, rx_str, tx_str)
+        self._setup_ui(pid, name, icon_key, rx_str, tx_str)
 
-    def _setup_ui(self, pid: int, name: str, icon_symbol: str, rx_str: str, tx_str: str):
+    def _setup_ui(self, pid: int, name: str, icon_key: str, rx_str: str, tx_str: str):
         self.setStyleSheet(f"""
             QFrame#ProcessCardItem {{
                 background-color: {COLOR_CARD_DARKER};
@@ -44,16 +45,16 @@ class ProcessCardItem(QFrame):
         top_row = QHBoxLayout()
         top_row.setSpacing(12)
 
-        # Icon box
-        icon_box = QLabel(icon_symbol)
-        icon_box.setFixedSize(38, 38)
-        icon_box.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        icon_box.setStyleSheet(f"""
+        # Vector Icon box
+        self.icon_box = QLabel()
+        self.icon_box.setFixedSize(38, 38)
+        self.icon_box.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.icon_box.setStyleSheet(f"""
             background-color: rgba(255, 255, 255, 0.05);
             border-radius: 12px;
-            font-size: 18px;
-            color: {COLOR_TEXT_MAIN};
         """)
+        pix = VectorIcons.render_pixmap(icon_key, size=20, color=COLOR_TEXT_MAIN)
+        self.icon_box.setPixmap(pix)
 
         # Name and PID
         meta_layout = QVBoxLayout()
@@ -68,7 +69,7 @@ class ProcessCardItem(QFrame):
         meta_layout.addWidget(name_lbl)
         meta_layout.addWidget(pid_lbl)
 
-        top_row.addWidget(icon_box)
+        top_row.addWidget(self.icon_box)
         top_row.addLayout(meta_layout)
         top_row.addStretch()
 
@@ -123,34 +124,46 @@ class DashboardView(QWidget):
 
     def __init__(self, parent=None):
         super().__init__(parent)
+        self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         self.process_widgets: Dict[int, ProcessCardItem] = {}
         self._setup_ui()
 
     def _setup_ui(self):
         main_layout = QHBoxLayout(self)
-        main_layout.setContentsMargins(10, 10, 10, 10)
+        main_layout.setContentsMargins(0, 0, 0, 0)
         main_layout.setSpacing(24)
 
         # Left Column: Hero Title & Speed Cards
         left_col = QVBoxLayout()
-        left_col.setContentsMargins(20, 20, 20, 20)
+        left_col.setContentsMargins(10, 10, 10, 10)
         left_col.setAlignment(Qt.AlignmentFlag.AlignVCenter)
         left_col.setSpacing(14)
 
-        # Live Traffic pill badge
-        pill_badge = QLabel("((•)) Live Traffic")
+        # Live Traffic pill badge (Properly padded without fixed-width cutoff!)
+        pill_badge = QFrame()
         pill_badge.setStyleSheet(f"""
             background-color: rgba(255, 255, 255, 0.05);
-            color: {COLOR_TEXT_MUTED};
-            font-size: 11px;
-            font-weight: 600;
-            letter-spacing: 1px;
-            border-radius: 14px;
-            padding: 6px 14px;
+            border-radius: 16px;
             border: 1px solid rgba(255, 255, 255, 0.08);
         """)
-        pill_badge.setFixedWidth(120)
-        left_col.addWidget(pill_badge)
+        pill_lay = QHBoxLayout(pill_badge)
+        pill_lay.setContentsMargins(12, 6, 16, 6)
+        pill_lay.setSpacing(8)
+
+        icon_live = QLabel()
+        icon_live.setPixmap(VectorIcons.render_pixmap("live", size=14, color=COLOR_ACCENT))
+        icon_live.setStyleSheet("border: none; background: transparent;")
+
+        lbl_live_text = QLabel("Live Traffic")
+        lbl_live_text.setStyleSheet(f"color: {COLOR_TEXT_MUTED}; font-size: 12px; font-weight: 500; border: none; background: transparent;")
+
+        pill_lay.addWidget(icon_live)
+        pill_lay.addWidget(lbl_live_text)
+
+        badge_container = QHBoxLayout()
+        badge_container.addWidget(pill_badge)
+        badge_container.addStretch()
+        left_col.addLayout(badge_container)
 
         # Headline
         headline = QLabel()
@@ -191,14 +204,14 @@ class DashboardView(QWidget):
         left_col.addLayout(checks_row)
         left_col.addSpacing(16)
 
-        # Big Speeds Box
+        # Big Speeds Box (Refined with vector arrows)
         speeds_frame = QFrame()
         speeds_frame.setStyleSheet(f"""
             background-color: rgba(37, 38, 42, 0.7);
             border: 1px solid rgba(255, 255, 255, 0.07);
             border-radius: 28px;
         """)
-        speeds_frame.setFixedSize(360, 110)
+        speeds_frame.setFixedSize(380, 114)
 
         speeds_layout = QHBoxLayout(speeds_frame)
         speeds_layout.setContentsMargins(24, 16, 24, 16)
@@ -207,20 +220,28 @@ class DashboardView(QWidget):
         # Download column
         dl_col = QVBoxLayout()
         dl_col.setSpacing(4)
-        lbl_dl_tag = QLabel("↙ DOWNLOAD")
-        lbl_dl_tag.setStyleSheet(f"color: {COLOR_TEXT_MUTED}; font-size: 10px; font-weight: 700; letter-spacing: 1px;")
         
+        dl_head = QHBoxLayout()
+        dl_icon = QLabel()
+        dl_icon.setPixmap(VectorIcons.render_pixmap("download", size=13, color=COLOR_ACCENT))
+        dl_icon.setStyleSheet("border: none; background: transparent;")
+        lbl_dl_tag = QLabel("DOWNLOAD")
+        lbl_dl_tag.setStyleSheet(f"color: {COLOR_TEXT_MUTED}; font-size: 10px; font-weight: 700; letter-spacing: 1px; border: none;")
+        dl_head.addWidget(dl_icon)
+        dl_head.addWidget(lbl_dl_tag)
+        dl_head.addStretch()
+
         dl_val_row = QHBoxLayout()
         self.lbl_live_dl = QLabel("2.4")
-        self.lbl_live_dl.setStyleSheet(f"color: {COLOR_TEXT_MAIN}; font-size: 32px; font-weight: 800;")
+        self.lbl_live_dl.setStyleSheet(f"color: {COLOR_TEXT_MAIN}; font-size: 32px; font-weight: 800; border: none;")
         dl_unit = QLabel("MB/s")
-        dl_unit.setStyleSheet(f"color: {COLOR_TEXT_MUTED}; font-size: 13px; font-weight: 400; padding-bottom: 4px;")
+        dl_unit.setStyleSheet(f"color: {COLOR_TEXT_MUTED}; font-size: 13px; font-weight: 400; padding-bottom: 4px; border: none;")
         dl_unit.setAlignment(Qt.AlignmentFlag.AlignBottom)
         dl_val_row.addWidget(self.lbl_live_dl)
         dl_val_row.addWidget(dl_unit)
         dl_val_row.addStretch()
 
-        dl_col.addWidget(lbl_dl_tag)
+        dl_col.addLayout(dl_head)
         dl_col.addLayout(dl_val_row)
 
         # Divider
@@ -231,20 +252,28 @@ class DashboardView(QWidget):
         # Upload column
         ul_col = QVBoxLayout()
         ul_col.setSpacing(4)
-        lbl_ul_tag = QLabel("↗ UPLOAD")
-        lbl_ul_tag.setStyleSheet(f"color: {COLOR_TEXT_MUTED}; font-size: 10px; font-weight: 700; letter-spacing: 1px;")
+
+        ul_head = QHBoxLayout()
+        ul_icon = QLabel()
+        ul_icon.setPixmap(VectorIcons.render_pixmap("upload", size=13, color=COLOR_ACCENT))
+        ul_icon.setStyleSheet("border: none; background: transparent;")
+        lbl_ul_tag = QLabel("UPLOAD")
+        lbl_ul_tag.setStyleSheet(f"color: {COLOR_TEXT_MUTED}; font-size: 10px; font-weight: 700; letter-spacing: 1px; border: none;")
+        ul_head.addWidget(ul_icon)
+        ul_head.addWidget(lbl_ul_tag)
+        ul_head.addStretch()
 
         ul_val_row = QHBoxLayout()
         self.lbl_live_ul = QLabel("0.8")
-        self.lbl_live_ul.setStyleSheet(f"color: {COLOR_TEXT_MAIN}; font-size: 32px; font-weight: 800;")
+        self.lbl_live_ul.setStyleSheet(f"color: {COLOR_TEXT_MAIN}; font-size: 32px; font-weight: 800; border: none;")
         ul_unit = QLabel("MB/s")
-        ul_unit.setStyleSheet(f"color: {COLOR_TEXT_MUTED}; font-size: 13px; font-weight: 400; padding-bottom: 4px;")
+        ul_unit.setStyleSheet(f"color: {COLOR_TEXT_MUTED}; font-size: 13px; font-weight: 400; padding-bottom: 4px; border: none;")
         ul_unit.setAlignment(Qt.AlignmentFlag.AlignBottom)
         ul_val_row.addWidget(self.lbl_live_ul)
         ul_val_row.addWidget(ul_unit)
         ul_val_row.addStretch()
 
-        ul_col.addWidget(lbl_ul_tag)
+        ul_col.addLayout(ul_head)
         ul_col.addLayout(ul_val_row)
 
         speeds_layout.addLayout(dl_col)
@@ -256,7 +285,8 @@ class DashboardView(QWidget):
 
         # Right Column: Process List Card
         proc_card = QFrame()
-        proc_card.setFixedWidth(360)
+        proc_card.setFixedWidth(380)
+        proc_card.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Expanding)
         proc_card.setStyleSheet(f"""
             QFrame#ProcCard {{
                 background-color: rgba(37, 38, 42, 0.85);
@@ -272,13 +302,17 @@ class DashboardView(QWidget):
 
         # Card Header
         header_row = QHBoxLayout()
-        header_title = QLabel("⚙ PROCESS LIST")
-        header_title.setStyleSheet(f"color: {COLOR_TEXT_MUTED}; font-size: 11px; font-weight: 700; letter-spacing: 1.2px;")
+        icon_cpu = QLabel()
+        icon_cpu.setPixmap(VectorIcons.render_pixmap("settings", size=14, color=COLOR_ACCENT))
+        icon_cpu.setStyleSheet("border: none; background: transparent;")
+        header_title = QLabel("PROCESS LIST")
+        header_title.setStyleSheet(f"color: {COLOR_TEXT_MUTED}; font-size: 11px; font-weight: 700; letter-spacing: 1.2px; border: none;")
 
         sort_btn = QPushButton("Sort by Usage ▼")
         sort_btn.setProperty("class", "subtle-btn")
         sort_btn.setCursor(Qt.CursorShape.PointingHandCursor)
 
+        header_row.addWidget(icon_cpu)
         header_row.addWidget(header_title)
         header_row.addStretch()
         header_row.addWidget(sort_btn)
@@ -298,20 +332,20 @@ class DashboardView(QWidget):
         self.scroll_area.setWidget(self.scroll_content)
         proc_layout.addWidget(self.scroll_area)
 
-        # Pre-populate with initial mockup items
+        # Pre-populate with initial mockup items using vector icons
         self._populate_initial_mockup()
 
         main_layout.addWidget(proc_card)
 
     def _populate_initial_mockup(self):
         samples = [
-            (8432, "Google Chrome", "🌐", "2.1 GB", "340 MB"),
-            (1205, "Telegram Desktop", "✈", "450 MB", "80 MB"),
-            (3491, "Spotify", "🎵", "120 MB", "5 MB"),
-            (9912, "Pacman", "📦", "45 MB", "1.2 MB"),
+            (8432, "Google Chrome", "chrome", "2.1 GB", "340 MB"),
+            (1205, "Telegram Desktop", "telegram", "450 MB", "80 MB"),
+            (3491, "Spotify", "spotify", "120 MB", "5 MB"),
+            (9912, "Pacman", "pacman", "45 MB", "1.2 MB"),
         ]
-        for pid, name, icon, rx, tx in samples:
-            card = ProcessCardItem(pid, name, icon, rx, tx)
+        for pid, name, icon_key, rx, tx in samples:
+            card = ProcessCardItem(pid, name, icon_key, rx, tx)
             self.process_widgets[pid] = card
             self.items_layout.addWidget(card)
 
@@ -329,7 +363,6 @@ class DashboardView(QWidget):
 
         processes = data.get("processes", [])
         if processes:
-            # Update existing or add new
             current_pids = set()
             for p in processes[:15]:
                 pid = p["pid"]
@@ -337,33 +370,31 @@ class DashboardView(QWidget):
                 rx_str = self._format_bytes(p.get("rx_bytes", 0))
                 tx_str = self._format_bytes(p.get("tx_bytes", 0))
                 name = p.get("name", "Unknown")
-                icon = self._get_icon_symbol(name)
+                icon_key = self._get_icon_key(name)
 
                 if pid in self.process_widgets:
                     self.process_widgets[pid].update_values(rx_str, tx_str)
                 else:
-                    card = ProcessCardItem(pid, name, icon, rx_str, tx_str)
+                    card = ProcessCardItem(pid, name, icon_key, rx_str, tx_str)
                     self.process_widgets[pid] = card
                     self.items_layout.addWidget(card)
 
     @staticmethod
-    def _get_icon_symbol(name: str) -> str:
+    def _get_icon_key(name: str) -> str:
         nl = name.lower()
         if "chrome" in nl:
-            return "🌐"
+            return "chrome"
         elif "telegram" in nl:
-            return "✈"
+            return "telegram"
         elif "spotify" in nl:
-            return "🎵"
+            return "spotify"
         elif "pacman" in nl or "yay" in nl:
-            return "📦"
+            return "pacman"
         elif "firefox" in nl:
-            return "🦊"
+            return "firefox"
         elif "docker" in nl:
-            return "🐳"
-        elif "code" in nl:
-            return "💻"
-        return "⚙"
+            return "docker"
+        return "settings"
 
     @staticmethod
     def _format_bytes(b: int) -> str:
