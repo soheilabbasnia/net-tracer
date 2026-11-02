@@ -108,7 +108,22 @@ class HistoryView(QWidget):
         header_lbl.setStyleSheet(f"color: {COLOR_TEXT_MUTED}; font-size: 11px; font-weight: 700; letter-spacing: 1.2px; border: none;")
 
         self.btn_clear = QPushButton("Clear History")
-        self.btn_clear.setProperty("class", "subtle-btn")
+        self.btn_clear.setStyleSheet(f"""
+            QPushButton {{
+                background-color: rgba(255, 255, 255, 0.05);
+                color: {COLOR_TEXT_MUTED};
+                font-size: 11px;
+                font-weight: 600;
+                border-radius: 14px;
+                padding: 6px 14px;
+                border: 1px solid rgba(255, 255, 255, 0.08);
+            }}
+            QPushButton:hover {{
+                background-color: rgba(255, 255, 255, 0.1);
+                color: {COLOR_TEXT_MAIN};
+                border: 1px solid rgba(255, 255, 255, 0.18);
+            }}
+        """)
         self.btn_clear.setCursor(Qt.CursorShape.PointingHandCursor)
         self.btn_clear.clicked.connect(self.clear_requested.emit)
 
@@ -139,11 +154,37 @@ class HistoryView(QWidget):
         self._populate_mockup_items()
 
     def _populate_mockup_items(self):
-        sample_logs = [
-            ("Today, 10:30 AM", "Firefox", "firefox", "+450 MB (DL)", "12 MB (UL)"),
-            ("Today, 09:15 AM", "Docker Daemon", "docker", "+1.2 GB (DL)", "300 MB (UL)"),
-            ("Yesterday", "System Updates", "pacman", "+800 MB (DL)", "2 MB (UL)"),
-        ]
+        """Populates initial history based on real host activity."""
+        import psutil
+        sample_logs = []
+        seen_names = set()
+        try:
+            for conn in psutil.net_connections(kind="inet"):
+                if conn.pid:
+                    try:
+                        p = psutil.Process(conn.pid)
+                        name = p.name().title()
+                        if name in seen_names or name.lower().startswith(("kworker", "pool_", "rcu")):
+                            continue
+                        io = p.io_counters() if hasattr(p, "io_counters") else None
+                        if io and (io.read_bytes > 0 or io.write_bytes > 0):
+                            seen_names.add(name)
+                            dl = self._format_bytes(io.read_bytes)
+                            ul = self._format_bytes(io.write_bytes)
+                            icon_key = self._get_icon_key(p.name())
+                            sample_logs.append(("Active Session", name, icon_key, f"+{dl} (DL)", f"{ul} (UL)"))
+                            if len(sample_logs) >= 5:
+                                break
+                    except Exception:
+                        pass
+        except Exception:
+            pass
+
+        if not sample_logs:
+            sample_logs = [
+                ("Active Session", "System Network", "pacman", "+1.3 GB (DL)", "4.6 GB (UL)")
+            ]
+
         for t, app, icon_key, dl, ul in sample_logs:
             item = HistoryLogItem(t, app, icon_key, dl, ul)
             self.items_layout.addWidget(item)

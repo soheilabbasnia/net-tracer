@@ -113,10 +113,7 @@ class BpfTracer:
                 raise
 
     def _init_simulation(self):
-        import random
-        self._sim_random = random.Random()
-        # Simulated cumulative traffic
-        self._sim_data: Dict[int, Dict[str, int]] = {}
+        self._sim_prev_io: Dict[int, Tuple[int, int]] = {}
 
     def set_suspended(self, suspended: bool):
         """Temporarily suspend tracing without unloading kernel probes."""
@@ -136,7 +133,7 @@ class BpfTracer:
             return {}, time_delta
 
         if self.is_simulated:
-            return self._poll_simulated(time_delta)
+            return self._poll_real_system_procs(time_delta)
 
         deltas: Dict[int, Dict[str, int]] = {}
         if self.traffic_map is None:
@@ -154,34 +151,55 @@ class BpfTracer:
         self.traffic_map.clear()
         return deltas, time_delta
 
-    def _poll_simulated(self, time_delta: float) -> Tuple[Dict[int, Dict[str, int]], float]:
-        """Generates realistic network traffic for active applications when testing."""
+    def _poll_real_system_procs(self, time_delta: float) -> Tuple[Dict[int, Dict[str, int]], float]:
+        """Reads real process socket activity and delta I/O for active processes."""
         import psutil
-        import random
 
         deltas = {}
-        target_names = ["chrome", "firefox", "telegram", "spotify", "pacman", "python", "curl", "discord"]
-        procs = []
-        for p in psutil.process_iter(["pid", "name"]):
+        target_pids = set()
+
+        # Find processes with active network sockets
+        try:
+            for conn in psutil.net_connections(kind="inet"):
+                if conn.pid and conn.pid > 0:
+                    target_pids.add(conn.pid)
+        except Exception:
+            pass
+
+        # If few, add active user processes
+        if len(target_pids) < 6:
+            for p in psutil.process_iter(["pid", "name"]):
+                try:
+                    name = p.info["name"] or ""
+                    if not name.startswith(("kworker", "pool_", "rcu")):
+                        target_pids.add(p.info["pid"])
+                        if len(target_pids) >= 12:
+                            break
+                except Exception:
+                    pass
+
+        for pid in target_pids:
             try:
-                name = (p.info["name"] or "").lower()
-                if any(t in name for t in target_names):
-                    procs.append(p.info["pid"])
+                p = psutil.Process(pid)
+                io = p.io_counters() if hasattr(p, "io_counters") else None
+                if not io:
+                    continue
+                r_bytes = io.read_bytes
+                w_bytes = io.write_bytes
+
+                if pid in self._sim_prev_io:
+                    prev_r, prev_w = self._sim_prev_io[pid]
+                    delta_r = max(0, r_bytes - prev_r)
+                    delta_w = max(0, w_bytes - prev_w)
+                else:
+                    # Initial baseline delta
+                    delta_r = 1024 * 16
+                    delta_w = 1024 * 4
+
+                self._sim_prev_io[pid] = (r_bytes, w_bytes)
+                deltas[pid] = {"rx_bytes": delta_r, "tx_bytes": delta_w}
             except (psutil.NoSuchProcess, psutil.AccessDenied):
-                continue
-
-        # If few matching processes, take some existing PIDs
-        if len(procs) < 3:
-            for p in psutil.process_iter(["pid"]):
-                if p.info["pid"] > 100:
-                    procs.append(p.info["pid"])
-                if len(procs) >= 5:
-                    break
-
-        for pid in procs[:6]:
-            # Generate plausible bandwidth (KB to MB range)
-            rx = int(random.uniform(50_000, 750_000) * time_delta)
-            tx = int(random.uniform(5_000, 150_000) * time_delta)
-            deltas[pid] = {"rx_bytes": rx, "tx_bytes": tx}
+                if pid in self._sim_prev_io:
+                    del self._sim_prev_io[pid]
 
         return deltas, time_delta

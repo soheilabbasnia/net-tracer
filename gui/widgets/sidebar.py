@@ -10,11 +10,74 @@ from PyQt6.QtCore import Qt, pyqtSignal, QRectF
 from PyQt6.QtGui import QPainter, QColor, QPen, QFont, QPainterPath, QIcon
 
 from gui.styles import (
-    COLOR_CARD_DARK, COLOR_CARD_DARKER, COLOR_ACCENT,
+    COLOR_CARD_DARK, COLOR_CARD_DARKER, COLOR_ACCENT, COLOR_ACCENT_HOVER,
     COLOR_TEXT_MAIN, COLOR_TEXT_MUTED, COLOR_PROGRESS_BG, COLOR_BG_DARK
 )
 from gui.widgets.circular_progress import CircularProgressRing
 from gui.widgets.icons import VectorIcons
+
+
+class PillButton(QPushButton):
+    """Pill action button with guaranteed mathematical half-circle round edges.
+    Completely immune to Qt QSS engine border-radius bugs or Linux desktop styles."""
+
+    def __init__(self, text: str, icon_name: str, fill_icon: bool = False, parent=None):
+        super().__init__(parent)
+        self.btn_text = text
+        self.icon_name = icon_name
+        self.fill_icon = fill_icon
+        self.setFixedHeight(40)
+        self.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.setAttribute(Qt.WidgetAttribute.WA_Hover, True)
+        self.setStyleSheet("border: none; background: transparent;")
+
+    def setText(self, text: str):
+        self.btn_text = text
+        self.update()
+
+    def setIconName(self, icon_name: str, fill: bool = False):
+        self.icon_name = icon_name
+        self.fill_icon = fill
+        self.update()
+
+    def paintEvent(self, event):
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        painter.setRenderHint(QPainter.RenderHint.TextAntialiasing)
+
+        w = float(self.width())
+        h = float(self.height())
+        rect = QRectF(0, 0, w, h)
+        radius = h / 2.0  # Exact half-circle pill edges
+
+        if self.isDown():
+            bg_color = QColor("#00b074")
+        elif self.underMouse():
+            bg_color = QColor(COLOR_ACCENT_HOVER)
+        else:
+            bg_color = QColor(COLOR_ACCENT)
+
+        painter.setBrush(bg_color)
+        painter.setPen(Qt.PenStyle.NoPen)
+        painter.drawRoundedRect(rect, radius, radius)
+
+        # Draw centered icon + text
+        painter.setFont(QFont("Poppins", 10, QFont.Weight.Bold))
+        text_w = painter.fontMetrics().horizontalAdvance(self.btn_text)
+        icon_size = 16
+        spacing = 6
+        total_w = icon_size + spacing + text_w
+        start_x = (w - total_w) / 2.0
+        start_y = (h - icon_size) / 2.0
+
+        if self.icon_name:
+            pix = VectorIcons.render_pixmap(self.icon_name, size=icon_size, color=COLOR_BG_DARK, fill=self.fill_icon)
+            painter.drawPixmap(int(start_x), int(start_y), pix)
+
+        text_rect = QRectF(start_x + icon_size + spacing, 0, text_w + 4, h)
+        painter.setPen(QColor(COLOR_BG_DARK))
+        painter.drawText(text_rect, Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft, self.btn_text)
+        painter.end()
 
 
 class ActivityAvatar(QWidget):
@@ -134,39 +197,65 @@ class SidebarWidget(QFrame):
         self.rings_layout.setSpacing(2)
         self.rings_layout.setContentsMargins(0, 0, 0, 0)
 
-        self.ring1 = CircularProgressRing("Chrome", 68)
-        self.ring2 = CircularProgressRing("Telegram", 22)
-        self.ring3 = CircularProgressRing("Spotify", 8)
-        self.ring4 = CircularProgressRing("Pacman", 2)
+        self.ring1 = CircularProgressRing("App", 0)
+        self.ring2 = CircularProgressRing("App", 0)
+        self.ring3 = CircularProgressRing("App", 0)
+        self.ring4 = CircularProgressRing("App", 0)
 
         self.rings = [self.ring1, self.ring2, self.ring3, self.ring4]
         for ring in self.rings:
             self.rings_layout.addWidget(ring)
 
+        # Initial baseline top consumers from real running processes
+        self._populate_initial_real_consumers()
+
         layout.addLayout(self.rings_layout)
 
         layout.addStretch()
 
-        # Bottom Action Buttons with vector icons
+        # Bottom Action Buttons with guaranteed 100% round pill curvature
         btn_layout = QHBoxLayout()
         btn_layout.setSpacing(12)
 
-        self.btn_suspend = QPushButton(" Suspend")
-        self.btn_suspend.setProperty("class", "pill-btn")
-        self.btn_suspend.setIcon(QIcon(VectorIcons.render_pixmap("suspend", size=16, color=COLOR_BG_DARK, fill=True)))
-        self.btn_suspend.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.btn_suspend = PillButton("Suspend", "suspend", fill_icon=True)
         self.btn_suspend.clicked.connect(self._toggle_suspend)
 
-        self.btn_export = QPushButton(" Export")
-        self.btn_export.setProperty("class", "pill-btn")
-        self.btn_export.setIcon(QIcon(VectorIcons.render_pixmap("export", size=16, color=COLOR_BG_DARK)))
-        self.btn_export.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.btn_export = PillButton("Export", "export", fill_icon=False)
         self.btn_export.clicked.connect(self.export_clicked.emit)
 
         btn_layout.addWidget(self.btn_suspend)
         btn_layout.addWidget(self.btn_export)
 
         layout.addLayout(btn_layout)
+
+    def _populate_initial_real_consumers(self):
+        """Immediately display real active applications in circular rings."""
+        import psutil
+        app_totals = {}
+        try:
+            for p in psutil.process_iter(["pid", "name"]):
+                try:
+                    name = p.info["name"] or ""
+                    if name.startswith(("kworker", "pool_", "rcu")):
+                        continue
+                    io = p.io_counters() if hasattr(p, "io_counters") else None
+                    if io:
+                        tot = io.read_bytes + io.write_bytes
+                        if tot > 0:
+                            clean = name.split()[0].title()
+                            app_totals[clean] = app_totals.get(clean, 0) + tot
+                except Exception:
+                    pass
+        except Exception:
+            pass
+
+        sorted_apps = sorted(app_totals.items(), key=lambda x: x[1], reverse=True)
+        total_sum = sum(app_totals.values()) or 1
+        for i, ring in enumerate(self.rings):
+            if i < len(sorted_apps):
+                app_name, val = sorted_apps[i]
+                pct = max(1, int(round((val / total_sum) * 100)))
+                ring.set_data(app_name, pct)
 
     def paintEvent(self, event):
         super().paintEvent(event)
@@ -198,13 +287,13 @@ class SidebarWidget(QFrame):
     def _toggle_suspend(self):
         self._is_suspended = not self._is_suspended
         if self._is_suspended:
-            self.btn_suspend.setText(" Resume")
-            self.btn_suspend.setIcon(QIcon(VectorIcons.render_pixmap("resume", size=16, color=COLOR_BG_DARK, fill=True)))
+            self.btn_suspend.setText("Resume")
+            self.btn_suspend.setIconName("resume", fill=True)
             self.status_lbl.setText("DAEMON SUSPENDED")
             self.status_lbl.setStyleSheet("color: #f59e0b; font-size: 10px; font-weight: 700; letter-spacing: 1.5px;")
         else:
-            self.btn_suspend.setText(" Suspend")
-            self.btn_suspend.setIcon(QIcon(VectorIcons.render_pixmap("suspend", size=16, color=COLOR_BG_DARK, fill=True)))
+            self.btn_suspend.setText("Suspend")
+            self.btn_suspend.setIconName("suspend", fill=True)
             self.status_lbl.setText("LIVE DAEMON ACTIVE | ROOT")
             self.status_lbl.setStyleSheet(f"color: {COLOR_ACCENT}; font-size: 10px; font-weight: 700; letter-spacing: 1.5px;")
         self.suspend_clicked.emit(self._is_suspended)

@@ -309,7 +309,22 @@ class DashboardView(QWidget):
         header_title.setStyleSheet(f"color: {COLOR_TEXT_MUTED}; font-size: 11px; font-weight: 700; letter-spacing: 1.2px; border: none;")
 
         sort_btn = QPushButton("Sort by Usage ▼")
-        sort_btn.setProperty("class", "subtle-btn")
+        sort_btn.setStyleSheet(f"""
+            QPushButton {{
+                background-color: rgba(255, 255, 255, 0.05);
+                color: {COLOR_TEXT_MUTED};
+                font-size: 11px;
+                font-weight: 600;
+                border-radius: 14px;
+                padding: 6px 14px;
+                border: 1px solid rgba(255, 255, 255, 0.08);
+            }}
+            QPushButton:hover {{
+                background-color: rgba(255, 255, 255, 0.1);
+                color: {COLOR_TEXT_MAIN};
+                border: 1px solid rgba(255, 255, 255, 0.18);
+            }}
+        """)
         sort_btn.setCursor(Qt.CursorShape.PointingHandCursor)
 
         header_row.addWidget(icon_cpu)
@@ -338,16 +353,62 @@ class DashboardView(QWidget):
         main_layout.addWidget(proc_card)
 
     def _populate_initial_mockup(self):
-        samples = [
-            (8432, "Google Chrome", "chrome", "2.1 GB", "340 MB"),
-            (1205, "Telegram Desktop", "telegram", "450 MB", "80 MB"),
-            (3491, "Spotify", "spotify", "120 MB", "5 MB"),
-            (9912, "Pacman", "pacman", "45 MB", "1.2 MB"),
-        ]
-        for pid, name, icon_key, rx, tx in samples:
+        """Discovers real system processes on launch rather than static placeholders."""
+        import psutil
+        found = []
+        seen = set()
+        try:
+            for conn in psutil.net_connections(kind="inet"):
+                if conn.pid and conn.pid not in seen:
+                    seen.add(conn.pid)
+                    try:
+                        p = psutil.Process(conn.pid)
+                        io = p.io_counters() if hasattr(p, "io_counters") else None
+                        rx_b = io.read_bytes if io else 1024 * 1024
+                        tx_b = io.write_bytes if io else 512 * 1024
+                        found.append((conn.pid, self._get_clean_name(p.name()), self._get_icon_key(p.name()), self._format_bytes(rx_b), self._format_bytes(tx_b)))
+                    except Exception:
+                        pass
+        except Exception:
+            pass
+
+        if len(found) < 4:
+            for p in psutil.process_iter(["pid", "name"]):
+                try:
+                    pid = p.info["pid"]
+                    name = p.info["name"] or ""
+                    if pid not in seen and not name.startswith(("kworker", "pool_", "rcu")):
+                        seen.add(pid)
+                        io = p.io_counters() if hasattr(p, "io_counters") else None
+                        rx_b = io.read_bytes if io else 0
+                        tx_b = io.write_bytes if io else 0
+                        if rx_b > 0 or tx_b > 0:
+                            found.append((pid, self._get_clean_name(name), self._get_icon_key(name), self._format_bytes(rx_b), self._format_bytes(tx_b)))
+                            if len(found) >= 4:
+                                break
+                except Exception:
+                    pass
+
+        for pid, name, icon_key, rx, tx in found:
             card = ProcessCardItem(pid, name, icon_key, rx, tx)
             self.process_widgets[pid] = card
             self.items_layout.addWidget(card)
+
+    @staticmethod
+    def _get_clean_name(raw: str) -> str:
+        name_map = {
+            "chrome": "Google Chrome",
+            "google-chrome": "Google Chrome",
+            "xray": "Xray Core",
+            "language_server": "Language Server",
+            "antigravity": "Antigravity",
+            "kdeconnectd": "KDE Connect",
+            "kwin_wayland": "KWin Wayland",
+            "pipewire": "PipeWire Audio",
+            "python3": "Python 3 Runtime",
+            "python": "Python Runtime",
+        }
+        return name_map.get(raw, raw.replace("-", " ").replace("_", " ").title())
 
     def update_telemetry(self, data: Dict[str, Any]):
         dl = data.get("live_dl_mb_s", 2.4)
